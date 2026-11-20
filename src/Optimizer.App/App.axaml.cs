@@ -7,10 +7,12 @@ using Avalonia.Platform;
 using Optimizer.App.Services;
 using Optimizer.App.ViewModels;
 using Optimizer.App.Views;
+using Optimizer.Core.Benchmarks;
 using Optimizer.Core.Changes;
 using Optimizer.Core.Diagnostics;
 using Optimizer.Core.Sessions;
 using Optimizer.Platform.Windows;
+using Optimizer.Platform.Windows.Benchmarks;
 using Optimizer.Platform.Windows.Changes;
 using Optimizer.Platform.Windows.Sessions;
 
@@ -43,14 +45,18 @@ public sealed class App : Application
                 sessionStore);
 
             var sessions = new SessionsViewModel(_monitor, settings, sessionStore);
+            var dialogs = new UserDialogs(() => desktop.MainWindow);
+            var benchmarks = new BenchmarksViewModel(
+                PresentMonRunner.Locate(), new BenchmarkStore(WindowsAppPaths.BenchmarksDirectory), _monitor, dialogs);
             var window = new MainWindow();
             var viewModel = new MainWindowViewModel(
                 new WindowsInventoryCollector(),
                 DiagnosticEngine.CreateDefault(),
                 new WindowsTweakCatalog(),
                 engine,
-                new UserDialogs(() => desktop.MainWindow),
-                sessions);
+                dialogs,
+                sessions,
+                benchmarks);
 
             var icon = new WindowIcon(AssetLoader.Open(new Uri("avares://PerformanceOptimizer/Assets/icon.png")));
             window.Icon = icon;

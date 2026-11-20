@@ -2,7 +2,14 @@
 
 Oyun performansını etkileyen sistem ayarlarını teşhis eden masaüstü uygulaması (Windows; Linux desteği planlı).
 
-**Mevcut durum — Faz 3 (oyun oturumları):** Uygulama sistemi tarar, sorunları listeler, bir kısmını kullanıcının onayıyla düzeltir ve oyun oynarken arka planda neyin kaynak tükettiğini ölçer. Yönetici yetkisi istemez.
+**Mevcut durum — Faz 4 (FPS ölçümü):** Uygulama sistemi tarar, sorunları listeler, bir kısmını kullanıcının onayıyla düzeltir, oyun oynarken arka planda neyin kaynak tükettiğini ölçer ve bir ayarın FPS'e gerçek etkisini önce/sonra ölçümüyle gösterir. Yönetici yetkisi istemez.
+
+## FPS ölçümü
+
+- Kare zamanları Intel'in açık kaynak aracı [PresentMon](https://github.com/GameTechDev/PresentMon) (MIT) ile ölçülür. Araç git'te tutulmaz; `tools/presentmon/PresentMon.exe` olarak indirilip derlemede uygulamanın yanına kopyalanır.
+- Her ölçüm bir etiketle kaydedilir (ör. "Discord açık"). Ortalama FPS, 1% low ve 0.1% low (%99 ve %99,9 kare süresine karşılık gelen FPS), takılma sayısı (medyanın 2,5 katından uzun kareler), ekrana gelmeyen kareler ve tahmini sınırlayan (ekran kartı / işlemci / kare sınırı) hesaplanır.
+- İki etiket karşılaştırılırken fark, aynı etiketin tekrar ölçümleri arasındaki oynaklıkla kıyaslanır. Oynaklıktan küçük farklar "anlamlı fark yok" olarak gösterilir; tek ölçüm varsa ±%5 oynaklık varsayılır.
+- Aynı kullanıcının başlattığı oyunlar yönetici izni olmadan ölçülür. Oyun yönetici olarak çalışıyorsa program, yalnızca PresentMon için yönetici izni (UAC) isteyerek tekrar dener.
 
 ## Oyun oturumları
 
@@ -53,6 +60,7 @@ dotnet run --project src/Optimizer.Cli -- history      # değişiklik geçmişi
 dotnet run --project src/Optimizer.Cli -- revert <id>  # tek değişikliği geri al
 dotnet run --project src/Optimizer.Cli -- revert-all   # her şeyi geri al
 dotnet run --project src/Optimizer.Cli -- sample 10    # şu an neyin kaynak kullandığını 10 sn ölç
+dotnet run --project src/Optimizer.Cli -- bench <pid|ad> 30 "etiket"   # FPS ölçümü (--admin: yönetici izniyle)
 ```
 
 Testler:

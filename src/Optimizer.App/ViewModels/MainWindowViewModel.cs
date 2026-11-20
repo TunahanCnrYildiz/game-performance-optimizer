@@ -16,9 +16,11 @@ public sealed partial class MainWindowViewModel(
     ITweakCatalog catalog,
     TweakEngine tweaks,
     IUserDialogs dialogs,
-    SessionsViewModel sessions) : ObservableObject
+    SessionsViewModel sessions,
+    BenchmarksViewModel benchmarks) : ObservableObject
 {
     public SessionsViewModel Sessions { get; } = sessions;
+    public BenchmarksViewModel Benchmarks { get; } = benchmarks;
 
     private const double GiB = 1024d * 1024 * 1024;
     private const int ConfirmSeconds = 15;

@@ -402,6 +402,109 @@
             </StackPanel>
           </ScrollViewer>
         </TabItem>
+
+        <!-- FPS measurement -->
+        <TabItem Header="FPS ölçümü" DataContext="{Binding Benchmarks}" x:DataType="vm:BenchmarksViewModel">
+          <ScrollViewer>
+            <StackPanel Spacing="12">
+
+              <Border Classes="card" IsVisible="{Binding IsUnavailable}" BorderThickness="1" BorderBrush="#D64545">
+                <TextBlock TextWrapping="Wrap"
+                           Text="Ölçüm aracı (Intel PresentMon) bulunamadı. Uygulamanın yanındaki tools klasöründe PresentMon.exe olmalı." />
+              </Border>
+
+              <Border Classes="card" IsVisible="{Binding IsAvailable}">
+                <StackPanel Spacing="10">
+                  <TextBlock Text="Yeni ölçüm" FontWeight="SemiBold" />
+                  <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap"
+                             Text="Bir ayarın gerçekten işe yarayıp yaramadığını kendi bilgisayarınızda görmek için: ayarı değiştirmeden önce ve sonra, oyunda aynı sahnede ölçün ve her ölçüme o durumu anlatan bir etiket verin. Her durumu en az 2 kez ölçün (A, B, A, B); tek ölçümlük farklar çoğu zaman rastlantıdır." />
+                  <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="10" RowSpacing="8">
+                    <TextBlock Text="Oyun" VerticalAlignment="Center" />
+                    <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" ItemsSource="{Binding Targets}" SelectedItem="{Binding SelectedTarget}">
+                      <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:TargetProcess">
+                          <TextBlock Text="{Binding Display}" />
+                        </DataTemplate>
+                      </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <Button Grid.Column="2" Content="Yenile" Command="{Binding RefreshTargetsCommand}" />
+
+                    <TextBlock Grid.Row="1" Text="Etiket" VerticalAlignment="Center" />
+                    <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Label}" PlaceholderText="ör. Discord kapalı" />
+
+                    <TextBlock Grid.Row="2" Text="Süre (sn)" VerticalAlignment="Center" />
+                    <ComboBox Grid.Row="2" Grid.Column="1" ItemsSource="{Binding DurationOptions}" SelectedItem="{Binding Seconds}" />
+                  </Grid>
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Classes="accent" Content="Ölçümü başlat" Command="{Binding MeasureCommand}" />
+                    <Button Content="İptal" Command="{Binding CancelCommand}" IsVisible="{Binding IsMeasuring}" />
+                    <ProgressBar IsIndeterminate="True" Width="80" IsVisible="{Binding IsMeasuring}" VerticalAlignment="Center" />
+                  </StackPanel>
+                  <TextBlock Text="{Binding Status}" TextWrapping="Wrap"
+                             IsVisible="{Binding Status, Converter={x:Static ObjectConverters.IsNotNull}}"
+                             Classes.error="{Binding StatusIsError}">
+                    <TextBlock.Styles>
+                      <Style Selector="TextBlock.error">
+                        <Setter Property="Foreground" Value="#D64545" />
+                      </Style>
+                    </TextBlock.Styles>
+                  </TextBlock>
+                </StackPanel>
+              </Border>
+
+              <Border Classes="card" IsVisible="{Binding HasRuns}">
+                <StackPanel Spacing="8">
+                  <TextBlock Text="Karşılaştır" FontWeight="SemiBold" />
+                  <Grid ColumnDefinitions="Auto,*,Auto,*,Auto,*" ColumnSpacing="8">
+                    <TextBlock Text="Oyun" VerticalAlignment="Center" />
+                    <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" ItemsSource="{Binding Games}" SelectedItem="{Binding CompareGame}" />
+                    <TextBlock Grid.Column="2" Text="A" VerticalAlignment="Center" />
+                    <ComboBox Grid.Column="3" HorizontalAlignment="Stretch" ItemsSource="{Binding Labels}" SelectedItem="{Binding LabelA}" />
+                    <TextBlock Grid.Column="4" Text="B" VerticalAlignment="Center" />
+                    <ComboBox Grid.Column="5" HorizontalAlignment="Stretch" ItemsSource="{Binding Labels}" SelectedItem="{Binding LabelB}" />
+                  </Grid>
+                  <TextBlock Text="{Binding ComparisonText}" TextWrapping="Wrap" />
+                </StackPanel>
+              </Border>
+
+              <TextBlock Text="Ölçümler" FontSize="16" FontWeight="SemiBold" IsVisible="{Binding HasRuns}" />
+              <Grid ColumnDefinitions="*,80,80,80,80,70" IsVisible="{Binding HasRuns}">
+                <TextBlock Classes="muted" FontSize="12" Text="Oyun — etiket" />
+                <TextBlock Grid.Column="1" Classes="muted" FontSize="12" Text="Ort. FPS" HorizontalAlignment="Right" />
+                <TextBlock Grid.Column="2" Classes="muted" FontSize="12" Text="1% low" HorizontalAlignment="Right" />
+                <TextBlock Grid.Column="3" Classes="muted" FontSize="12" Text="0.1% low" HorizontalAlignment="Right" />
+                <TextBlock Grid.Column="4" Classes="muted" FontSize="12" Text="Takılma" HorizontalAlignment="Right" />
+              </Grid>
+              <ItemsControl ItemsSource="{Binding Runs}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <StackPanel Spacing="6" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:BenchmarkRunViewModel">
+                    <Border Classes="row" Padding="12,8">
+                      <StackPanel Spacing="4">
+                        <Grid ColumnDefinitions="*,80,80,80,80,70">
+                          <StackPanel Orientation="Horizontal" Spacing="10">
+                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            <TextBlock Classes="muted" FontSize="12" Text="{Binding DateText}" VerticalAlignment="Center" />
+                          </StackPanel>
+                          <TextBlock Grid.Column="1" Classes="mono" Text="{Binding AvgText}" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                          <TextBlock Grid.Column="2" Classes="mono" Text="{Binding Low1Text}" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                          <TextBlock Grid.Column="3" Classes="mono" Text="{Binding Low01Text}" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                          <TextBlock Grid.Column="4" Classes="mono" Text="{Binding StutterText}" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                          <Button Grid.Column="5" Content="Sil" FontSize="12" Padding="8,2" HorizontalAlignment="Right" Command="{Binding DeleteCommand}" />
+                        </Grid>
+                        <TextBlock Classes="muted" FontSize="12" Text="{Binding Details}" TextWrapping="Wrap" />
+                      </StackPanel>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </ScrollViewer>
+        </TabItem>
       </TabControl>
     </Grid>
   </Grid>

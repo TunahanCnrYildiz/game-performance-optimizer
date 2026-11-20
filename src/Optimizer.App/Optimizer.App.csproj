@@ -19,4 +19,9 @@
     <ProjectReference Include="..\Optimizer.Core\Optimizer.Core.csproj" />
     <ProjectReference Include="..\Optimizer.Platform.Windows\Optimizer.Platform.Windows.csproj" />
   </ItemGroup>
+  <!-- Intel PresentMon (MIT), downloaded into tools\presentmon; not stored in git. -->
+  <ItemGroup Condition="Exists('..\..\tools\presentmon\PresentMon.exe')">
+    <None Include="..\..\tools\presentmon\PresentMon.exe" Link="tools\PresentMon.exe" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\tools\presentmon\LICENSE.txt" Link="tools\PresentMon-LICENSE.txt" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

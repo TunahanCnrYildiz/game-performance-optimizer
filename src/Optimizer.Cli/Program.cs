@@ -13,6 +13,7 @@ using Optimizer.Platform.Windows.Changes;
 //   optimizer revert <id>     undo one change (id prefix is enough)
 //   optimizer revert-all      undo everything — works even if the desktop app does not start
 //   optimizer sample [sec]    measure what uses CPU/GPU/I-O right now (default 6 s)
+//   optimizer bench <pid|name> [sec] [label] [--admin]   FPS capture with PresentMon
 Console.OutputEncoding = Encoding.UTF8;
 
 var command = args.FirstOrDefault(a => !a.StartsWith("--", StringComparison.Ordinal)) ?? "report";
@@ -44,6 +45,9 @@ switch (command)
         Sample(int.TryParse(args.ElementAtOrDefault(1), out var sec) ? sec : 6);
         return 0;
 
+    case "bench":
+        return await Bench(args.Where(a => a != "--admin").Skip(1).ToArray(), args.Contains("--admin"));
+
     case "report":
         await Report(args.Contains("--json"));
         return 0;
@@ -51,6 +55,61 @@ switch (command)
     default:
         Console.Error.WriteLine($"Bilinmeyen komut: {command}. Komutlar: report, history, revert <id>, revert-all");
         return 1;
+}
+
+static async Task<int> Bench(string[] rest, bool admin)
+{
+    var runner = Optimizer.Platform.Windows.Benchmarks.PresentMonRunner.Locate();
+    if (runner is null)
+    {
+        Console.Error.WriteLine(@"PresentMon bulunamadı (tools\PresentMon.exe).");
+        return 1;
+    }
+
+    var target = rest.ElementAtOrDefault(0);
+    var seconds = int.TryParse(rest.ElementAtOrDefault(1), out var s) ? s : 20;
+    var label = rest.ElementAtOrDefault(2) ?? "ölçüm";
+
+    var process = int.TryParse(target, out var pid)
+        ? System.Diagnostics.Process.GetProcessById(pid)
+        : System.Diagnostics.Process.GetProcessesByName(Path.GetFileNameWithoutExtension(target ?? ""))
+            .OrderByDescending(p => p.WorkingSet64).FirstOrDefault();
+    if (process is null)
+    {
+        Console.Error.WriteLine($"Süreç bulunamadı: {target}");
+        return 1;
+    }
+
+    Console.WriteLine($"{process.ProcessName} (PID {process.Id}) {seconds} sn ölçülüyor{(admin ? " (yönetici izniyle)" : "")}...");
+    var result = await runner.CaptureAsync(new Optimizer.Platform.Windows.Benchmarks.CaptureRequest(process.Id, seconds, Elevated: admin));
+    if (!result.Success)
+    {
+        Console.Error.WriteLine(result.Error + (result.MayNeedElevation ? " (--admin ile deneyin)" : ""));
+        return 2;
+    }
+
+    var frames = Optimizer.Core.Benchmarks.FrameStatistics.MainSwapChain(result.Frames);
+    var summary = Optimizer.Core.Benchmarks.FrameStatistics.Compute(frames);
+    if (summary is null)
+    {
+        Console.Error.WriteLine($"Yeterli kare yok ({result.Frames.Count}).");
+        return 2;
+    }
+
+    Console.WriteLine($"Kare: {summary.Frames}, süre {summary.DurationSeconds:0.0} sn");
+    Console.WriteLine($"Ortalama FPS: {summary.AvgFps:0.0} | 1% low: {summary.Low1PercentFps:0.0} | 0.1% low: {summary.Low01PercentFps:0.0}");
+    Console.WriteLine($"Kare süresi: medyan {summary.MedianFrameMs:0.00} ms, %99 {summary.P99FrameMs:0.00} ms, en uzun {summary.MaxFrameMs:0.0} ms, takılma {summary.Stutters}");
+    Console.WriteLine($"CPU meşgul {summary.AvgCpuBusyMs:0.00} ms, GPU meşgul {summary.AvgGpuBusyMs:0.00} ms → sınırlayan: {summary.Bottleneck}; ekrana gelmeyen kare %{summary.DroppedPercent:0.0}");
+
+    new Optimizer.Core.Benchmarks.BenchmarkStore(WindowsAppPaths.BenchmarksDirectory).Save(new Optimizer.Core.Benchmarks.BenchmarkRun
+    {
+        Id = Guid.NewGuid(),
+        GameName = process.ProcessName,
+        Label = label,
+        CapturedAt = DateTimeOffset.Now,
+        Summary = summary,
+    });
+    return 0;
 }
 
 static void Sample(int seconds)

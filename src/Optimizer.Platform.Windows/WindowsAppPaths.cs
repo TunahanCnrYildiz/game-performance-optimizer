@@ -14,4 +14,6 @@ public static class WindowsAppPaths
     public static string SessionsDirectory { get; } = Path.Combine(Root, "sessions");
 
     public static string SettingsFile { get; } = Path.Combine(Root, "settings.json");
+
+    public static string BenchmarksDirectory { get; } = Path.Combine(Root, "benchmarks");
 }
