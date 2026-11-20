@@ -2,7 +2,16 @@
 
 Oyun performansını etkileyen sistem ayarlarını teşhis eden masaüstü uygulaması (Windows; Linux desteği planlı).
 
-**Mevcut durum — Faz 2 (güvenli düzeltme):** Uygulama sistemi tarar, sorunları listeler ve bir kısmını kullanıcının onayıyla düzeltebilir. Yönetici yetkisi istemez.
+**Mevcut durum — Faz 3 (oyun oturumları):** Uygulama sistemi tarar, sorunları listeler, bir kısmını kullanıcının onayıyla düzeltir ve oyun oynarken arka planda neyin kaynak tükettiğini ölçer. Yönetici yetkisi istemez.
+
+## Oyun oturumları
+
+- Steam/Epic kütüphanelerinden başlatılan oyunlar (ya da kullanıcının eklediği .exe'ler) otomatik algılanır.
+- Oyun sürerken iki saniyede bir süreç başına işlemci, ekran kartı (Görev Yöneticisi'nin kullandığı "GPU Engine" sayaçları), G/Ç ve bellek ölçülür; ayrıca işlemcinin saat hızı ve güç/ısı sınırına takılıp takılmadığı izlenir.
+- Oyun bitince oyun dışındaki en büyük tüketiciler raporlanır. Program kendi listesinden hiçbir şeyi kapatmaz.
+- Kullanıcının seçtiği uygulamalar oyun süresince "verimlilik modu"na alınır (Görev Yöneticisi'ndeki ile aynı: düşük öncelik + EcoQoS) ve oyun bitince eski hâline döner. Windows bileşenleri ve anti-cheat yazılımları listeye eklenemez.
+- Bu değişiklikler de geri alma günlüğüne "bekliyor" olarak yazılır; program oyun sırasında çökerse bir sonraki açılışta geri alınır.
+- İzleme açıkken pencereyi kapatmak programı sistem tepsisine küçültür; tamamen kapatmak için tepsi menüsünden "Çık".
 
 ## Değişiklikler nasıl güvenli tutuluyor
 
@@ -43,6 +52,7 @@ dotnet run --project src/Optimizer.Cli                 # rapor (JSON için --jso
 dotnet run --project src/Optimizer.Cli -- history      # değişiklik geçmişi
 dotnet run --project src/Optimizer.Cli -- revert <id>  # tek değişikliği geri al
 dotnet run --project src/Optimizer.Cli -- revert-all   # her şeyi geri al
+dotnet run --project src/Optimizer.Cli -- sample 10    # şu an neyin kaynak kullandığını 10 sn ölç
 ```
 
 Testler:
@@ -60,6 +70,6 @@ dotnet test --solution PerformanceOptimizer.slnx
 | `Optimizer.App` | Avalonia arayüzü |
 | `Optimizer.Cli` | Komut satırı raporu |
 | `tests/Optimizer.Core.Tests` | Kural ve değişiklik motoru testleri |
-| `tests/Optimizer.Platform.Windows.Tests` | Kayıt defteri yürütücüsü testleri (yalnızca geçici bir test anahtarında çalışır) |
+| `tests/Optimizer.Platform.Windows.Tests` | Kayıt defteri, süreç örnekleyici ve uçtan uca oturum testleri (yalnızca geçici test anahtarı ve testin kendi başlattığı süreçler üzerinde çalışır) |
 
 Ayrıntılar: [ARASTIRMA.md](ARASTIRMA.md), [TEKNOLOJI.md](TEKNOLOJI.md)

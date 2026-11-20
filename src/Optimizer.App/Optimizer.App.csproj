@@ -13,6 +13,9 @@
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
   </ItemGroup>
   <ItemGroup>
+    <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\Optimizer.Core\Optimizer.Core.csproj" />
     <ProjectReference Include="..\Optimizer.Platform.Windows\Optimizer.Platform.Windows.csproj" />
   </ItemGroup>

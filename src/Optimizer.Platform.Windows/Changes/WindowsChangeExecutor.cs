@@ -10,6 +10,7 @@ public sealed class WindowsChangeExecutor : IChangeExecutor
         PowerSchemeChange p => PowerSchemeExecutor.Capture(p),
         DisplayModeChange d => DisplayModeExecutor.Capture(d),
         MouseAccelerationChange m => MouseExecutor.Capture(m),
+        ProcessEfficiencyChange e => ProcessEfficiencyExecutor.Capture(e),
         _ => throw Unsupported(desired),
     };
 
@@ -21,6 +22,7 @@ public sealed class WindowsChangeExecutor : IChangeExecutor
             case PowerSchemeChange p: PowerSchemeExecutor.Apply(p); break;
             case DisplayModeChange d: DisplayModeExecutor.Apply(d); break;
             case MouseAccelerationChange m: MouseExecutor.Apply(m); break;
+            case ProcessEfficiencyChange e: ProcessEfficiencyExecutor.Apply(e); break;
             default: throw Unsupported(change);
         }
     }
@@ -33,6 +35,7 @@ public sealed class WindowsChangeExecutor : IChangeExecutor
             case PowerSchemeChange p: PowerSchemeExecutor.Revert(p); break;
             case DisplayModeChange d: DisplayModeExecutor.Revert(d); break;
             case MouseAccelerationChange m: MouseExecutor.Revert(m); break;
+            case ProcessEfficiencyChange e: ProcessEfficiencyExecutor.Revert(e); break;
             default: throw Unsupported(change);
         }
     }
@@ -43,6 +46,7 @@ public sealed class WindowsChangeExecutor : IChangeExecutor
         PowerSchemeChange p => PowerSchemeExecutor.Inspect(p),
         DisplayModeChange d => DisplayModeExecutor.Inspect(d),
         MouseAccelerationChange m => MouseExecutor.Inspect(m),
+        ProcessEfficiencyChange e => ProcessEfficiencyExecutor.Inspect(e),
         _ => throw Unsupported(change),
     };
 

@@ -14,6 +14,7 @@ namespace Optimizer.Core.Changes;
 [JsonDerivedType(typeof(PowerSchemeChange), "powerScheme")]
 [JsonDerivedType(typeof(DisplayModeChange), "displayMode")]
 [JsonDerivedType(typeof(MouseAccelerationChange), "mouseAcceleration")]
+[JsonDerivedType(typeof(ProcessEfficiencyChange), "processEfficiency")]
 public abstract record Change
 {
     /// <summary>True once the executor has recorded the original state.</summary>
@@ -77,6 +78,19 @@ public sealed record MouseParameters(int Threshold1, int Threshold2, int Acceler
     public static readonly MouseParameters WindowsDefault = new(6, 10, 1);
 
     public bool AccelerationOn => Acceleration != 0;
+}
+
+/// <summary>Priority class and EcoQoS (power throttling) masks of a running process.</summary>
+public sealed record ProcessEfficiencyState(int PriorityClass, uint ThrottleControlMask, uint ThrottleStateMask);
+
+/// <summary>
+/// Puts one running process into "efficiency mode" (the same thing Task Manager does:
+/// idle priority + EcoQoS). Lives only as long as the process; identified by PID and
+/// start time so a recycled PID is never touched.
+/// </summary>
+public sealed record ProcessEfficiencyChange(int Pid, string ProcessName, DateTime StartTimeUtc, ProcessEfficiencyState? Before) : Change
+{
+    public override string Describe() => $"{ProcessName} (PID {Pid}): verimlilik modu (düşük öncelik + EcoQoS)";
 }
 
 public sealed record MouseAccelerationChange(MouseParameters? Before, MouseParameters After) : Change

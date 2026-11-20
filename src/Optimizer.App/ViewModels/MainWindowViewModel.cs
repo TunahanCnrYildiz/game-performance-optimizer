@@ -15,8 +15,11 @@ public sealed partial class MainWindowViewModel(
     DiagnosticEngine diagnostics,
     ITweakCatalog catalog,
     TweakEngine tweaks,
-    IUserDialogs dialogs) : ObservableObject
+    IUserDialogs dialogs,
+    SessionsViewModel sessions) : ObservableObject
 {
+    public SessionsViewModel Sessions { get; } = sessions;
+
     private const double GiB = 1024d * 1024 * 1024;
     private const int ConfirmSeconds = 15;
 
@@ -80,6 +83,7 @@ public sealed partial class MainWindowViewModel(
         }
 
         LoadHistory();
+        Sessions.Activate();
         await ScanAsync();
     }
 
@@ -222,7 +226,8 @@ public sealed partial class MainWindowViewModel(
     private void LoadHistory()
     {
         History.Clear();
-        foreach (var entry in tweaks.Journal.LoadAll())
+        // Finished game-session entries (efficiency mode, already restored) would flood the list.
+        foreach (var entry in tweaks.Journal.LoadAll().Where(e => e.TweakId != "session.efficiency-mode" || e.CanRevert))
             History.Add(new HistoryEntryViewModel(entry, RevertAsync));
         OnPropertyChanged(nameof(HasHistory));
         OnPropertyChanged(nameof(HasOpenChanges));

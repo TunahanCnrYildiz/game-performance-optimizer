@@ -229,7 +229,7 @@ macOS'ta yazılımla yapılabilecek optimizasyon alanı çok dardır ve bu kası
 
 1. **Faz 1 — Teşhis aracı (salt okuma).** ✅ Tamamlandı. Envanter + kural motoru + rapor. Sıcaklık/throttling izleme Faz 3'e kaldı.
 2. **Faz 2 — Güvenli uygulayıcı.** ✅ Tamamlandı. Günlük + kayıt defteri/güç planı/ekran modu/fare yürütücüleri + doğrulama + geri alma + 15 sn onaylı ekran değişikliği. Yönetici gerektiren ayarlar ve Sistem Geri Yükleme noktası Faz 5'e kaldı.
-3. **Faz 3 — Oyun oturumu: kaynak ölçümü + oturum modu.** (§4.5'teki kanıta dayanır.)
+3. **Faz 3 — Oyun oturumu: kaynak ölçümü + oturum modu.** ✅ İlk sürüm tamamlandı (§4.5'teki kanıta dayanır). Sıcaklık okunamıyor (yönetici/sürücü gerektiriyor); onun yerine Windows'un "% Performance Limit" sayacıyla güç/ısı sınırına takılma ölçülüyor. Oturum sırasında güç planı değiştirme eklenmedi (Ryzen'de kanıtlanmış faydası yok).
    - **Oyun tespiti:** Steam/Epic kütüphanelerindeki çalıştırılabilir dosyalar + tam ekran/ön plan süreç izleme; kullanıcı elle oyun ekleyebilir.
    - **Oturum sırasında kaynak ölçümü:** Oyun açıkken birkaç saniyede bir süreç bazında işlemci (`GetProcessTimes`), ekran kartı (`GPU Engine` performans sayaçları), disk G/Ç ve bellek örneklenir. Oyun dışındaki en büyük tüketiciler oturum sonunda listelenir ("Oyun sırasında OneDrive diskin %40'ını, tarayıcı GPU'nun %8'ini kullandı").
    - **Sıcaklık/throttling:** Oyun sırasında işlemci saat hızı ve güç sınırı düşüşleri (yapılabildiği ölçüde yönetici gerektirmeden).

@@ -12,6 +12,7 @@ using Optimizer.Platform.Windows.Changes;
 //   optimizer history         list every change this app made
 //   optimizer revert <id>     undo one change (id prefix is enough)
 //   optimizer revert-all      undo everything — works even if the desktop app does not start
+//   optimizer sample [sec]    measure what uses CPU/GPU/I-O right now (default 6 s)
 Console.OutputEncoding = Encoding.UTF8;
 
 var command = args.FirstOrDefault(a => !a.StartsWith("--", StringComparison.Ordinal)) ?? "report";
@@ -39,6 +40,10 @@ switch (command)
 
         return PrintReverts([engine.Revert(matches[0].Id)]);
 
+    case "sample":
+        Sample(int.TryParse(args.ElementAtOrDefault(1), out var sec) ? sec : 6);
+        return 0;
+
     case "report":
         await Report(args.Contains("--json"));
         return 0;
@@ -46,6 +51,33 @@ switch (command)
     default:
         Console.Error.WriteLine($"Bilinmeyen komut: {command}. Komutlar: report, history, revert <id>, revert-all");
         return 1;
+}
+
+static void Sample(int seconds)
+{
+    using var sampler = new Optimizer.Platform.Windows.Sessions.WindowsSystemSampler();
+    var roots = Optimizer.Platform.Windows.Sessions.GameLibraryLocator.FindGameRoots();
+    Console.WriteLine("Oyun klasörleri: " + (roots.Count == 0 ? "(bulunamadı)" : string.Join(", ", roots)));
+
+    var matcher = new Optimizer.Core.Sessions.GameMatcher(roots, [], []);
+    var agg = new Optimizer.Core.Sessions.SessionAggregator("ölçüm", "", "", DateTimeOffset.Now);
+    sampler.Sample(detailed: true);
+    for (var i = 0; i < seconds; i++)
+    {
+        Thread.Sleep(1000);
+        var s = sampler.Sample(detailed: true);
+        agg.Add(s);
+        if (i == 0 && matcher.FindGame(s) is { } game)
+            Console.WriteLine($"Çalışan oyun: {game.Name} ({game.Path})");
+    }
+
+    var report = agg.Build(DateTimeOffset.Now);
+    if (report.Cpu is { } cpu)
+        Console.WriteLine($"İşlemci: ort. kullanım %{cpu.AvgUtilizationPercent:0.0}, ort. saat {cpu.AvgEffectiveMhz:0} MHz (en düşük {cpu.MinEffectiveMhz:0}), sınırlanan örnek %{cpu.LimitedSamplePercent:0} (izin verilen en düşük performans %{cpu.MinAllowedPerformancePercent:0})");
+    Console.WriteLine();
+    Console.WriteLine($"{"Süreç",-32} {"CPU %",7} {"GPU %",7} {"G/Ç MB/s",9} {"Bellek MB",10}");
+    foreach (var p in report.Background.Take(15))
+        Console.WriteLine($"{p.Name,-32} {p.AvgCpuPercent,7:0.0} {p.AvgGpuPercent,7:0.0} {p.AvgIoBytesPerSec / 1048576,9:0.00} {p.PeakWorkingSetBytes / 1048576,10:0}");
 }
 
 static void PrintHistory(Journal journal)
