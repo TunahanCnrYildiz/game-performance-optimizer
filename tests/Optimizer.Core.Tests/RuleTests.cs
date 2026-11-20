@@ -35,10 +35,10 @@ public class RuleTests
     private static GpuInfo Igpu => new() { Name = "AMD Radeon(TM) Graphics", Vendor = GpuVendor.Amd, Kind = GpuKind.Integrated };
     private static GpuInfo Dgpu => new() { Name = "AMD Radeon RX 9070 XT", Vendor = GpuVendor.Amd, Kind = GpuKind.Discrete };
 
-    private static MemoryInfo Memory(MemoryGeneration gen, int configured, int modules = 2, long perModule = 16 * GiB) =>
+    private static MemoryInfo Memory(MemoryGeneration gen, int configured, int modules = 2, long perModule = 16 * GiB, int rated = 4800) =>
         new(perModule * modules,
             Enumerable.Range(0, modules)
-                .Select(_ => new MemoryModule(perModule, 4800, configured, gen, null, null, null))
+                .Select(_ => new MemoryModule(perModule, rated, configured, gen, null, null, null))
                 .ToList());
 
     // ---- Refresh rate ----
@@ -132,8 +132,8 @@ public class RuleTests
 
     [Theory]
     [InlineData(30, Severity.Ok)]
-    [InlineData(200, Severity.Suggestion)]
-    [InlineData(400, Severity.Warning)]
+    [InlineData(200, Severity.Info)]
+    [InlineData(400, Severity.Suggestion)]
     public void Driver_age_thresholds(int ageDays, Severity expected)
     {
         var date = DateOnly.FromDateTime(Now.UtcDateTime).AddDays(-ageDays);
@@ -170,6 +170,29 @@ public class RuleTests
         var inv = Desktop() with { Memory = Memory(MemoryGeneration.Ddr5, configured: 6000) };
 
         Assert.Equal(Severity.Ok, Assert.Single(new MemorySpeedRule().Evaluate(inv)).Severity);
+    }
+
+    [Fact]
+    public void Ddr5_at_its_own_jedec_5600_is_info_not_a_claim_about_expo()
+    {
+        var inv = Desktop() with { Memory = Memory(MemoryGeneration.Ddr5, configured: 5600, rated: 5600) };
+
+        var finding = Assert.Single(new MemorySpeedRule().Evaluate(inv));
+
+        Assert.Equal(Severity.Info, finding.Severity);
+        Assert.DoesNotContain("etkin", finding.Title);
+    }
+
+    // ---- HAGS ----
+
+    [Fact]
+    public void Hags_off_only_suggested_for_nvidia_frame_generation()
+    {
+        var off = new GamingSettings { Hags = Toggle.Off };
+        var nvidia = new GpuInfo { Name = "NVIDIA GeForce RTX 5080", Vendor = GpuVendor.Nvidia, Kind = GpuKind.Discrete };
+
+        Assert.Empty(new HagsRule().Evaluate(Desktop() with { Gaming = off, Gpus = [Dgpu] }));
+        Assert.Equal(Severity.Suggestion, Assert.Single(new HagsRule().Evaluate(Desktop() with { Gaming = off, Gpus = [nvidia] })).Severity);
     }
 
     [Fact]
@@ -224,6 +247,37 @@ public class RuleTests
     public void Healthy_power_returns_single_ok()
     {
         Assert.Equal(Severity.Ok, Assert.Single(new PowerRule().Evaluate(Desktop())).Severity);
+    }
+
+    // ---- Game Mode ----
+
+    private static SystemInventory WithCpu(string cpu, Toggle gameMode) => Desktop() with
+    {
+        Cpu = new CpuInfo(cpu, 16, 32, 4300),
+        Gaming = new GamingSettings { GameMode = gameMode },
+    };
+
+    [Theory]
+    [InlineData("AMD Ryzen 7 9800X3D 8-Core Processor")]
+    [InlineData("AMD Ryzen 7 7800X3D 8-Core Processor")]
+    [InlineData("Intel(R) Core(TM) i7-14700K")]
+    public void Game_mode_off_is_only_info_on_ordinary_cpus(string cpu)
+    {
+        var finding = Assert.Single(new GameModeRule().Evaluate(WithCpu(cpu, Toggle.Off)));
+
+        Assert.Equal(Severity.Info, finding.Severity);
+        Assert.Equal(Impact.None, finding.Impact);
+    }
+
+    [Theory]
+    [InlineData("AMD Ryzen 9 7950X3D 16-Core Processor")]
+    [InlineData("AMD Ryzen 9 9950X3D 16-Core Processor")]
+    [InlineData("AMD Ryzen 9 9900X3D 12-Core Processor")]
+    public void Game_mode_off_on_dual_ccd_x3d_is_warning(string cpu)
+    {
+        var finding = Assert.Single(new GameModeRule().Evaluate(WithCpu(cpu, Toggle.Off)));
+
+        Assert.Equal(Severity.Warning, finding.Severity);
     }
 
     // ---- Unknown data never produces problems ----

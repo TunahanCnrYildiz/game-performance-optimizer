@@ -52,10 +52,11 @@ public sealed class GpuDriverAgeRule : IRule
                 continue;
 
             var ageDays = today.DayNumber - date.DayNumber;
+            // An old driver is not a measured slowdown, only a likely missing fix for newer games.
             var (severity, impact) = ageDays switch
             {
-                > 365 => (Severity.Warning, Impact.Medium),
-                > 180 => (Severity.Suggestion, Impact.Low),
+                > 365 => (Severity.Suggestion, Impact.Low),
+                > 180 => (Severity.Info, Impact.None),
                 _ => (Severity.Ok, Impact.None),
             };
 
@@ -70,8 +71,8 @@ public sealed class GpuDriverAgeRule : IRule
                     : $"{gpu.Name} sürücüsü {ageDays / 30} aylık",
                 Detail = severity == Severity.Ok
                     ? $"Sürücü sürümü {gpu.DriverVersion}."
-                    : $"Sürücü sürümü {gpu.DriverVersion}, tarihi {date:dd.MM.yyyy}. Yeni oyunlar için yapılan optimizasyonlar ve hata düzeltmeleri "
-                      + "sürücü güncellemeleriyle gelir.",
+                    : $"Sürücü sürümü {gpu.DriverVersion}, tarihi {date:dd.MM.yyyy}. Eski oyunlarda fark yaratmayabilir; ancak son çıkan "
+                      + "oyunlara yönelik düzeltmeler ve iyileştirmeler yalnızca yeni sürücülerle gelir.",
                 Recommendation = severity == Severity.Ok ? null : DriverSource(gpu.Vendor),
             };
         }
@@ -86,7 +87,10 @@ public sealed class GpuDriverAgeRule : IRule
     };
 }
 
-/// <summary>Hardware-accelerated GPU scheduling; required by DLSS Frame Generation.</summary>
+/// <summary>
+/// Hardware-accelerated GPU scheduling. Tests show near-identical FPS on vs off; the one
+/// hard dependency is NVIDIA DLSS Frame Generation. AMD AFMF does not need it.
+/// </summary>
 public sealed class HagsRule : IRule
 {
     public string Id => "graphics.hags";
@@ -96,8 +100,6 @@ public sealed class HagsRule : IRule
         var state = inventory.Gaming?.Hags ?? Toggle.Unknown;
         if (state == Toggle.Unknown)
             yield break;
-
-        var hasModernDiscrete = inventory.Gpus.Any(g => g.Kind == GpuKind.Discrete);
 
         if (state == Toggle.On)
         {
@@ -111,7 +113,8 @@ public sealed class HagsRule : IRule
             yield break;
         }
 
-        if (!hasModernDiscrete)
+        var nvidia = inventory.Gpus.Any(g => g.Kind == GpuKind.Discrete && g.Vendor == GpuVendor.Nvidia);
+        if (!nvidia)
             yield break;
 
         yield return new Finding
@@ -121,9 +124,11 @@ public sealed class HagsRule : IRule
             Severity = Severity.Suggestion,
             Impact = Impact.Low,
             Title = "Donanım hızlandırmalı GPU zamanlaması kapalı",
-            Detail = "Bu özellik NVIDIA DLSS Kare Oluşturma (Frame Generation) için gereklidir ve çoğu güncel sistemde gecikmeyi biraz azaltır.",
-            Recommendation = "Ayarlar > Sistem > Ekran > Grafik > Varsayılan grafik ayarlarını değiştir bölümünden açın ve bilgisayarı yeniden başlatın.",
-            Caveat = "Bazı eski sürücü/oyun birleşimlerinde takılma yapabilir. Açtıktan sonra sorun görürseniz aynı yerden kapatabilirsiniz.",
+            Detail = "NVIDIA DLSS Kare Oluşturma (Frame Generation) bu ayar açık değilken çalışmaz. Bunun dışında yapılan testlerde "
+                     + "açık ya da kapalı olmasının FPS'e etkisi genelde ölçülemeyecek kadar küçük.",
+            Recommendation = "DLSS Kare Oluşturma kullanmak istiyorsanız Ayarlar > Sistem > Ekran > Grafik > Varsayılan grafik ayarlarını "
+                             + "değiştir bölümünden açın ve bilgisayarı yeniden başlatın.",
+            Caveat = "Bazı sürücü/oyun birleşimlerinde takılma bildirilmiş. Açtıktan sonra sorun görürseniz aynı yerden kapatabilirsiniz.",
         };
     }
 }

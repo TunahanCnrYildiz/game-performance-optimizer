@@ -42,6 +42,9 @@ internal sealed class GameModeTweak() : SimpleTweak("windows.game-mode.on", "win
 {
     public override IReadOnlyList<Change> GetChanges(SystemInventory inventory, Finding finding) =>
         [new RegistryValueChange("HKCU", @"Software\Microsoft\GameBar", "AutoGameModeEnabled", null, RegistryData.Dword(1))];
+
+    // Only offered where Game Mode is actually needed (dual-CCD X3D); elsewhere it is neutral.
+    public override bool Handles(Finding finding) => base.Handles(finding) && finding.Severity == Severity.Warning;
 }
 
 internal sealed class BackgroundRecordingTweak()

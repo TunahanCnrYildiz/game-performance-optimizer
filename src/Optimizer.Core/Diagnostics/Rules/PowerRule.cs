@@ -38,7 +38,8 @@ public sealed class PowerRule : IRule
                 Severity = Severity.Suggestion,
                 Impact = Impact.High,
                 Title = "Bilgisayar pilde çalışıyor",
-                Detail = "Dizüstü bilgisayarlar pildeyken ekran kartı ve işlemciyi çoğu zaman yarı güce ya da daha altına sınırlar.",
+                Detail = "Dizüstü bilgisayarlar pildeyken ekran kartı ve işlemcinin güç sınırını düşürür; ne kadar düşürdüğü modele göre "
+                         + "değişir ama oyunlarda genelde belirgin FPS kaybı olur.",
                 Recommendation = "Oyun oynarken şarj aletini takın; mümkünse üreticinin orijinal, tam güçlü adaptörünü kullanın.",
             };
         }

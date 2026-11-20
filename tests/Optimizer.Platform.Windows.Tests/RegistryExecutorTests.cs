@@ -126,11 +126,21 @@ public sealed class RegistryExecutorTests : IDisposable
     public void Catalog_offers_no_fix_for_ok_findings()
     {
         var catalog = new WindowsTweakCatalog();
-        var ok = new Finding { Id = "windows.game-mode", Category = Category.Windows, Severity = Severity.Ok, Title = "" };
+        var ok = new Finding { Id = "windows.background-recording", Category = Category.Windows, Severity = Severity.Ok, Title = "" };
         var bad = ok with { Severity = Severity.Suggestion };
 
         Assert.Null(catalog.FindFor(ok));
-        Assert.Equal("windows.game-mode.on", catalog.FindFor(bad)?.Id);
+        Assert.Equal("windows.background-recording.off", catalog.FindFor(bad)?.Id);
+    }
+
+    [Fact]
+    public void Game_mode_fix_only_offered_when_it_is_needed()
+    {
+        var catalog = new WindowsTweakCatalog();
+        var info = new Finding { Id = "windows.game-mode", Category = Category.Windows, Severity = Severity.Info, Title = "" };
+
+        Assert.Null(catalog.FindFor(info));
+        Assert.Equal("windows.game-mode.on", catalog.FindFor(info with { Severity = Severity.Warning })?.Id);
     }
 
     private sealed class TestTweak : ITweak

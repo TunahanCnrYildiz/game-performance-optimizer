@@ -1,8 +1,15 @@
+using System.Text.RegularExpressions;
 using Optimizer.Core.Inventory;
 
 namespace Optimizer.Core.Diagnostics.Rules;
 
-public sealed class GameModeRule : IRule
+/// <summary>
+/// Game Mode is not a general recommendation: on current Windows 11 tests it is roughly
+/// neutral and can hurt 1% lows in some CPU-bound games. The one case where it clearly
+/// matters is a dual-CCD Ryzen X3D, where AMD's V-Cache driver parks the non-cache CCD
+/// only while Game Mode is active.
+/// </summary>
+public sealed partial class GameModeRule : IRule
 {
     public string Id => "windows.game-mode";
 
@@ -12,20 +19,62 @@ public sealed class GameModeRule : IRule
         if (state == Toggle.Unknown)
             yield break;
 
-        yield return state == Toggle.On
-            ? new Finding { Id = Id, Category = Category.Windows, Severity = Severity.Ok, Title = "Oyun Modu açık" }
-            : new Finding
+        var dualCcdX3d = IsDualCcdX3d(inventory.Cpu?.Name);
+
+        if (state == Toggle.On)
+        {
+            yield return new Finding
             {
                 Id = Id,
                 Category = Category.Windows,
-                Severity = Severity.Suggestion,
-                Impact = Impact.Low,
-                Title = "Oyun Modu kapalı",
-                Detail = "Oyun Modu, oyun açıkken Windows Update'in sürücü kurmasını ve yeniden başlatma bildirimlerini engeller, "
-                         + "oyuna kaynak önceliği verir.",
-                Recommendation = "Ayarlar > Oyun > Oyun Modu'nu açın.",
+                Severity = Severity.Ok,
+                Title = "Oyun Modu açık",
+                Detail = dualCcdX3d
+                    ? "Bu işlemcide AMD'nin 3D V-Cache sürücüsü, oyunları önbellekli çekirdeklere yönlendirmek için Oyun Modu'na ihtiyaç duyar; açık kalmalı."
+                    : "Güncel testlerde Oyun Modu ortalama FPS'i belirgin şekilde değiştirmiyor. İşlemcinin darboğaz olduğu bir oyunda "
+                      + "takılma yaşarsanız kapatıp karşılaştırmayı deneyebilirsiniz.",
             };
+            yield break;
+        }
+
+        if (dualCcdX3d)
+        {
+            yield return new Finding
+            {
+                Id = Id,
+                Category = Category.Windows,
+                Severity = Severity.Warning,
+                Impact = Impact.High,
+                Title = "Oyun Modu kapalı — bu işlemcide gerekli",
+                Detail = $"{inventory.Cpu!.Name} iki çekirdek grubundan (CCD) oluşur ve yalnızca birinde 3D V-Cache vardır. AMD'nin sürücüsü, "
+                         + "oyun açıkken önbelleksiz grubu yalnızca Oyun Modu etkinken devre dışı bırakır. Oyun Modu kapalıyken oyun "
+                         + "iş parçacıkları iki gruba dağılabilir ve gruplar arası gecikme yüzünden FPS düşer.",
+                Recommendation = "Ayarlar > Oyun > Oyun Modu'nu açın ve AMD yonga seti sürücüsünün güncel olduğundan emin olun.",
+            };
+            yield break;
+        }
+
+        yield return new Finding
+        {
+            Id = Id,
+            Category = Category.Windows,
+            Severity = Severity.Info,
+            Title = "Oyun Modu kapalı",
+            Detail = "Bu sistemde Oyun Modu'nun kapalı olması bir sorun değil. Windows 11'deki güncel testlerde ortalama FPS'e etkisi "
+                     + "yaklaşık ±%5 içinde kalıyor; bazı işlemci yoğun oyunlarda kapalıyken 1% low değerleri daha iyi çıkıyor. "
+                     + "Windows 10 döneminde (2020) Oyun Modu'nun takılmaya yol açtığı bilinen bir hata vardı ve Microsoft bunu düzeltti.",
+            Recommendation = "Kapalı bırakabilirsiniz. Açık olması yalnızca oyun sırasında Windows Update'in sürücü kurmasını ve "
+                             + "yeniden başlatma bildirimlerini ertelemesi açısından işe yarar.",
+        };
     }
+
+    // Ryzen 9 7900X3D/7950X3D, 9900X3D/9950X3D and later "x9x0X3D" parts. Single-CCD
+    // chips (7800X3D, 9800X3D) have nothing to park.
+    internal static bool IsDualCcdX3d(string? cpuName) =>
+        cpuName is not null && DualCcdX3dRegex().IsMatch(cpuName);
+
+    [GeneratedRegex(@"Ryzen\s+9\s+\d{4}X3D", RegexOptions.IgnoreCase)]
+    private static partial Regex DualCcdX3dRegex();
 }
 
 public sealed class BackgroundRecordingRule : IRule
@@ -45,9 +94,11 @@ public sealed class BackgroundRecordingRule : IRule
                 Id = Id,
                 Category = Category.Windows,
                 Severity = Severity.Suggestion,
-                Impact = Impact.Medium,
+                Impact = Impact.Low,
                 Title = "Arka planda oyun kaydı açık ('Olanları kaydet')",
-                Detail = "Xbox Game Bar oyun boyunca sürekli video kaydı tutuyor. Bu, ekran kartının kodlayıcısını ve diski sürekli kullanır.",
+                Detail = "Xbox Game Bar oyun boyunca sürekli video kaydı tutuyor; ekran kartının kodlayıcısını ve diski kullanır. "
+                         + "Güçlü sistemlerde maliyeti genelde birkaç FPS'i geçmiyor, zayıf sistemlerde daha belirgin. Microsoft da "
+                         + "performans sorunu yaşayanlara ilk olarak bu ayarı kapatmayı öneriyor.",
                 Recommendation = "Ayarlar > Oyun > Yakalamalar > 'Olanları kaydet'i kapatın.",
                 Caveat = "Son anları klip olarak kaydetmek için bu özelliği kullanıyorsanız açık bırakın.",
             };
@@ -76,6 +127,8 @@ public sealed class WindowedOptimizationsRule : IRule
                 Detail = "Bu ayar eski DirectX 10/11 oyunlarının pencereli ve kenarlıksız modda daha düşük gecikmeyle çalışmasını, "
                          + "Otomatik HDR ve değişken yenileme hızını kullanabilmesini sağlar.",
                 Recommendation = "Ayarlar > Sistem > Ekran > Grafik > Varsayılan grafik ayarlarını değiştir > 'Pencereli oyunlar için iyileştirmeler'i açın.",
+                Caveat = "Yalnızca DirectX 10/11 kullanan ve pencereli/kenarlıksız çalışan oyunları etkiler. Bazı oyunlarda ekran yırtılmasına "
+                         + "yol açtığı bildirilmiş; o oyun için aynı ekrandan tek tek kapatılabilir.",
             };
     }
 }
@@ -125,7 +178,8 @@ public sealed class StartupItemsRule : IRule
                 Severity = Severity.Suggestion,
                 Impact = Impact.Low,
                 Title = $"Windows ile birlikte {enabled.Count} program başlıyor",
-                Detail = $"Başlangıç programları: {names}. Bunların çoğu arka planda bellek ve işlemci kullanır, bazıları oyun sırasında güncelleme indirir.",
+                Detail = $"Başlangıç programları: {names}. Bunlar açılışı yavaşlatır; bir kısmı arka planda bellek ve işlemci kullanır ya da "
+                         + "oyun sırasında güncelleme indirir. Oyun FPS'ine etkisi genelde küçüktür.",
                 Recommendation = "Görev Yöneticisi > Başlangıç uygulamaları sekmesinden ihtiyaç duymadıklarınızı devre dışı bırakın (silmeyin).",
             }
             : new Finding

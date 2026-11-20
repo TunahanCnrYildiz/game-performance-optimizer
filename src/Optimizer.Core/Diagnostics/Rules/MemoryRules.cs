@@ -29,6 +29,20 @@ public sealed class MemorySpeedRule : IRule
         if (jedecFallback is null)
             yield break;
 
+        // Windows reports the module's base (JEDEC) speed as "rated"; running above it means a profile is on.
+        var rated = memory.Modules.Max(m => m.RatedSpeedMts);
+        if (rated > 0 && configured > rated)
+        {
+            yield return new Finding
+            {
+                Id = Id,
+                Category = Category.Memory,
+                Severity = Severity.Ok,
+                Title = $"RAM {configured} MT/s'de çalışıyor (XMP/EXPO profili etkin)",
+            };
+            yield break;
+        }
+
         if (configured <= jedecFallback)
         {
             yield return new Finding
@@ -46,12 +60,17 @@ public sealed class MemorySpeedRule : IRule
         }
         else
         {
+            // Above the lowest JEDEC speed but not above the module's own base speed: either a fast
+            // JEDEC kit (e.g. DDR5-5600) or a faster kit whose profile is off. We cannot tell which.
             yield return new Finding
             {
                 Id = Id,
                 Category = Category.Memory,
-                Severity = Severity.Ok,
-                Title = $"RAM {configured} MT/s'de çalışıyor (XMP/EXPO etkin görünüyor)",
+                Severity = Severity.Info,
+                Title = $"RAM {configured} MT/s'de, standart (JEDEC) hızında çalışıyor",
+                Detail = "Belleğin etiketindeki hız bu değerle aynıysa her şey yolunda. Etiket daha yüksek bir hız gösteriyorsa "
+                         + "(ör. 6000 MT/s) XMP/EXPO profili açık değildir.",
+                Recommendation = "Etiket daha hızlıysa BIOS'tan XMP (Intel) ya da EXPO (AMD) profilini etkinleştirin.",
             };
         }
     }

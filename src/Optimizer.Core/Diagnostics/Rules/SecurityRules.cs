@@ -63,11 +63,12 @@ public sealed class SecureBootRule : IRule
             {
                 Id = Id,
                 Category = Category.Security,
+                // Impact describes performance; Secure Boot has none, it only decides whether some games start.
                 Severity = Severity.Suggestion,
-                Impact = Impact.High,
+                Impact = Impact.None,
                 Title = "Güvenli Önyükleme (Secure Boot) kapalı",
-                Detail = "Performansı etkilemez, ancak Battlefield 6, Valorant ve FACEIT gibi anti-cheat kullanan bazı oyunlar Secure Boot "
-                         + "kapalıyken hiç açılmaz.",
+                Detail = "Performansı etkilemez. Ancak Valorant, Battlefield 6 ve Call of Duty: Black Ops 7 gibi çekirdek seviyesinde "
+                         + "anti-cheat kullanan oyunlar Secure Boot kapalıyken açılmıyor.",
                 Recommendation = "BIOS/UEFI ayarlarından Secure Boot'u etkinleştirin.",
                 Caveat = "Sistem eski (Legacy/CSM) modda kuruluysa önce diskin GPT'ye dönüştürülmesi gerekir; aksi hâlde Windows açılmaz. "
                          + "Emin değilseniz bu adımı bir bilene danışın.",

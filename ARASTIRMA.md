@@ -121,7 +121,7 @@ Tespit (envanter)  →  Analiz (kural motoru)  →  Öneri listesi (risk etiketl
 |---|---|---|
 | **Monitör yenileme hızı doğru mu?** | `EnumDisplaySettingsEx` ile desteklenen en yüksek hızı bul, aktifle karşılaştır; `ChangeDisplaySettingsEx` ile değiştir (onay zamanlayıcısıyla) | En sık ve en büyük kazanç. Kablo (HDMI 1.4 vs DP) sınırını da açıkla. |
 | **Oyun doğru GPU'da mı?** (hibrit dizüstü) | `HKCU\Software\Microsoft\DirectX\UserGpuPreferences` → değer adı: exe yolu, veri: `GpuPreference=2;` | Ayarlar > Ekran > Grafik ekranıyla aynı mekanizma. |
-| **Oyun Modu açık** | `HKCU\Software\Microsoft\GameBar\AutoGameModeEnabled = 1` | Varsayılan zaten açık; kapatılmışsa aç. |
+| **Oyun Modu** | `HKCU\Software\Microsoft\GameBar\AutoGameModeEnabled` | **Denetimle düzeltildi (bkz. §8):** Genel öneri değil. Yalnızca çift CCD'li Ryzen 9 X3D'de gerekli. |
 | **Arka plan oyun kaydı (Game DVR) kapalı** | `HKCU\System\GameConfigStore\GameDVR_Enabled = 0`, `HKCU\Software\Microsoft\Windows\CurrentVersion\GameDVR\AppCaptureEnabled = 0` | Kullanıcı kayıt özelliğini kullanıyorsa sor. |
 | **Pencereli oyunlar için iyileştirmeler** | `HKCU\Software\Microsoft\DirectX\UserGpuPreferences\DirectXUserGlobalSettings` içine `SwapEffectUpgradeEnable=1;` | Eski DX10/11 pencereli oyunlarda gecikmeyi azaltır, VRR/Auto HDR'ı mümkün kılar. |
 | **Değişken Yenileme Hızı (VRR)** | Aynı `DirectXUserGlobalSettings` içinde `VRROptimizeEnable=1;` | Uyumlu monitör varsa. |
@@ -161,6 +161,17 @@ Tespit (envanter)  →  Analiz (kural motoru)  →  Öneri listesi (risk etiketl
 - Sürücüleri silip "temiz kurulum" otomasyonu (DDU benzeri) — yanlış giderse görüntü yok.
 
 ---
+
+### 4.5 Arka plan uygulamaları, hizmetler, görsel efektler, Defender — kanıt özeti (20 Kasım 2026)
+
+| Konu | Kanıt | Programın tutumu |
+|---|---|---|
+| **Hizmet kapatma / debloat (Tiny11, betikler)** | Normal Windows 11 ile karşılaştırmalarda FPS farkı birkaç kare, çoğu zaman ölçüm hatası içinde; kazanç boştayken birkaç yüz MB–1 GB RAM. Sürücü, zamanlayıcı ve grafik altyapısı aynı kalıyor. Betiklerdeki asıl etkili adım genellikle VBS/HVCI'ı kapatmak. Bedeli: Store/Xbox/Bluetooth/yazdırma/güncellemelerin bozulması, güncellemelerin bazı hizmetleri geri açması. | Toplu hizmet kapatma **yok**. VBS/HVCI ayrı bir kural olarak zaten gösteriliyor. |
+| **Görsel efektler, saydamlık, animasyonlar** | Kontrollü FPS testi bulunamadı. Tam ekran oyunlarda masaüstü bileşeni (DWM) büyük ölçüde devre dışı; pencereli modda yükü harici GPU için çok küçük. Fayda zayıf dahili grafikli eski cihazlarda masaüstü akıcılığıyla sınırlı. | Performans ayarı olarak sunulmaz; ileride yalnızca zayıf iGPU'lu dizüstülerde bilgi olarak gösterilebilir. |
+| **Windows Defender** | Eski testlerde ortalama FPS'e etkisi yok denecek kadar az; asıl risk dosya açılırken tarama kaynaklı anlık takılmalar (1% low). 2022'de bazı Intel sistemlerde ~%6 işlemci kaybı bildirildi (sonraki durumu doğrulanamadı). | Defender'ı kapatma **yok**. İleride (yönetici yardımcısıyla) oyun kütüphanesi klasörü için tarama istisnası, güvenlik bedeli açıkça yazılarak "orta risk" seçeneği olabilir. |
+| **Aktif arka plan uygulamaları** (Discord katmanı/yayını, video oynatan tarayıcı, OneDrive senkronizasyonu, güncelleme indiren başlatıcılar, RGB/üretici yazılımları) | Etkisi büyük olabiliyor (özellikle 4 çekirdekli işlemcilerde), ama kanıtlar çoğunlukla kullanıcı deneyimi ve sistemden sisteme çok değişiyor. Genel bir "şunları kapat" listesi doğru değil. | **Faz 3:** Oyun sırasında süreç bazında ölçüm; o sistemde gerçekten kaynak tüketenleri göster, seçilenleri oyun süresince duraklat. |
+
+Kaynaklar: [TechYorker — Tiny11](https://techyorker.com/tiny11-hands-on-how-much-lighter-is-windows-11-without-the-extra-bloat/), [Brutal Optimizer — debloat betikleri](https://brutaloptimizer.com/blog/are-windows-debloat-scripts-safe-tiny11-atlas), [tiny11-automated](https://github.com/kelexine/tiny11-automated), [Chillblast — antivirüs ve oyun](https://www.chillblast.com/blog/does-having-anti-virus-installed-slow-down-games), [TechPowerUp — Defender ve Intel](https://techpowerup.com/295877/windows-defender-can-significantly-impact-intel-cpu-performance-we-have-the-fix), [Windows Central — görsel efektler](https://windowscentral.com/how-disable-visual-effects-speed-windows-11), [Deadlock forumu — Discord takılması](https://forums.playdeadlock.com/threads/running-discord-on-a-4-core-cpu-causes-stutters-in-deadlock.94387).
 
 ## 5. Linux — ayar kataloğu
 
@@ -216,17 +227,43 @@ macOS'ta yazılımla yapılabilecek optimizasyon alanı çok dardır ve bu kası
 
 ## 7. Önerilen yol haritası (MVP → olgun ürün)
 
-1. **Faz 1 — Teşhis aracı (salt okuma).** Envanter + kural motoru + rapor. Hiçbir şey değiştirmez. Yenileme hızı, yanlış GPU, güç modu, VBS/HVCI durumu, sürücü yaşı, RAM hızı vs. desteklenen hız, disk, sıcaklık. Bu bile tek başına çok faydalı ve risksiz.
-2. **Faz 2 — Güvenli uygulayıcı.** Journal + registry/powercfg applier + geri alma + geri yükleme noktası. Sadece §4.2'deki düşük riskli ayarlar.
-3. **Faz 3 — Oturum modu.** Oyun süreci tespiti (Steam/Epic/Battle.net kütüphaneleri, süreç izleme), oyun açılınca uygula, kapanınca geri al.
-4. **Faz 4 — Ölçüm.** PresentMon entegrasyonu, önce/sonra karşılaştırma ekranı.
+1. **Faz 1 — Teşhis aracı (salt okuma).** ✅ Tamamlandı. Envanter + kural motoru + rapor. Sıcaklık/throttling izleme Faz 3'e kaldı.
+2. **Faz 2 — Güvenli uygulayıcı.** ✅ Tamamlandı. Günlük + kayıt defteri/güç planı/ekran modu/fare yürütücüleri + doğrulama + geri alma + 15 sn onaylı ekran değişikliği. Yönetici gerektiren ayarlar ve Sistem Geri Yükleme noktası Faz 5'e kaldı.
+3. **Faz 3 — Oyun oturumu: kaynak ölçümü + oturum modu.** (§4.5'teki kanıta dayanır.)
+   - **Oyun tespiti:** Steam/Epic kütüphanelerindeki çalıştırılabilir dosyalar + tam ekran/ön plan süreç izleme; kullanıcı elle oyun ekleyebilir.
+   - **Oturum sırasında kaynak ölçümü:** Oyun açıkken birkaç saniyede bir süreç bazında işlemci (`GetProcessTimes`), ekran kartı (`GPU Engine` performans sayaçları), disk G/Ç ve bellek örneklenir. Oyun dışındaki en büyük tüketiciler oturum sonunda listelenir ("Oyun sırasında OneDrive diskin %40'ını, tarayıcı GPU'nun %8'ini kullandı").
+   - **Sıcaklık/throttling:** Oyun sırasında işlemci saat hızı ve güç sınırı düşüşleri (yapılabildiği ölçüde yönetici gerektirmeden).
+   - **Oturum modu:** Kullanıcının seçtiği uygulamalar oyun açılınca duraklatılır/kapatılır, isteğe bağlı olarak güç planı ve bildirimler oturum boyunca değiştirilir; oyun kapanınca hepsi geri alınır. Mevcut günlük (journal) altyapısını kullanır; çökme sonrası kurtarma aynı şekilde çalışır.
+   - **Önerilen eylemler ölçüme dayanır:** Program hiçbir hizmeti ya da uygulamayı kendi listesinden kapatmaz; yalnızca o sistemde ölçülen tüketicileri gösterir, karar kullanıcınındır.
+   - **Kapsam dışı:** Toplu hizmet kapatma, Defender'ı kapatma, görsel efektleri performans ayarı olarak sunma (§4.5).
+4. **Faz 4 — FPS ölçümü.** PresentMon entegrasyonu, önce/sonra karşılaştırma ekranı (ortalama, 1% ve 0.1% low). Belirsiz ayarlar (Oyun Modu, HAGS, Discord donanım hızlandırma vb.) kullanıcının kendi sisteminde A/B test edilir.
 5. **Faz 5 — Gelişmiş ayarlar.** HAGS, HVCI, onay zamanlayıcılı yeniden başlatma akışı, kayma tespiti.
 6. **Faz 6 — Linux desteği.** GameMode/sysctl drop-in/power-profiles; polkit yardımcısı.
 7. **Test altyapısı:** Her ayarı Hyper-V/VirtualBox sanal makinelerde (farklı Windows build'leri) uygula-geri al döngüsüyle otomatik test et; "uygula → geri al → sistem durumu ilk hâliyle bire bir aynı mı?" kontrolü. Gerçek donanımda en az bir masaüstü + bir hibrit GPU'lu dizüstü test et.
 
 ---
 
-## 8. Kaynaklar
+## 8. Kural denetimi (20 Kasım 2026)
+
+İlk sürümdeki teşhis kuralları genel tavsiyelere dayanıyordu. Her kuralın iddiası kaynaklarla karşılaştırıldı; sonuç:
+
+| Kural | Önceki iddia | Kanıt | Karar |
+|---|---|---|---|
+| Oyun Modu | Kapalıysa "öneri", açılmalı | Windows 11'de ortalama FPS'e etkisi ~±%5; bazı işlemci yoğun oyunlarda kapalıyken 1% low daha iyi. 2020'deki Windows 10 takılma hatası (AMD ve NVIDIA) Microsoft tarafından düzeltildi. Çift CCD'li Ryzen 9 X3D'de AMD'nin V-Cache sürücüsü çekirdek park etmek için Oyun Modu'na ihtiyaç duyuyor. | Yalnızca 7900X3D/7950X3D/9900X3D/9950X3D'de kapalıysa **uyarı** + düzeltme; diğerlerinde **bilgi**, düzeltme önerilmez. |
+| HAGS | Kapalıysa tüm harici GPU'larda öneri, "gecikmeyi azaltır" | Testlerde FPS neredeyse aynı. DLSS Kare Oluşturma için zorunlu; AMD AFMF için değil. | Yalnızca NVIDIA harici GPU'da öneri; "gecikmeyi azaltır" iddiası kaldırıldı. |
+| Arka plan kaydı | Etki: orta | Ölçümler küçük maliyet gösteriyor (eski bir testte <2 FPS, tahminler %3–6). Microsoft performans sorununda ilk kapatılacak ayar olarak gösteriyor. | Öneri kalıyor, etki **düşük**e indirildi. |
+| RAM hızı | 4800 MT/s üstü her DDR5 için "XMP/EXPO etkin görünüyor" | DDR5'in JEDEC hızı modüle göre 4800/5200/5600 vb. olabilir. | Profil etkin yalnızca yapılandırılmış hız modülün kendi taban hızını aşınca söyleniyor; aksi hâlde "standart hızda" bilgisi. |
+| Sürücü yaşı | >1 yıl uyarı, >6 ay öneri | Eski sürücü ölçülmüş bir yavaşlama değil, yeni oyunlara yönelik düzeltmelerin eksikliği. | >1 yıl öneri, >6 ay bilgi. |
+| Secure Boot | Etki: yüksek | Performansa etkisi yok; Valorant, Battlefield 6, Black Ops 7 açılmıyor. FACEIT örneği doğrulanamadı. | Performans etkisi **yok** olarak işaretlendi, oyun listesi doğrulanmış örneklerle değiştirildi. |
+| Pencereli oyun iyileştirmeleri | Öneri | Microsoft'un kendi belgesi: DX10/11 pencereli oyunlarda flip modeline geçiş, daha düşük gecikme, VRR/Auto HDR. Bazı oyunlarda yırtılma bildirildi. | Öneri kalıyor, yırtılma uyarısı eklendi. |
+| Pil, disk alanı, HDD, başlangıç | Kesin ifadeler ("yarı güce düşer", "takılmalar başlar") | Genel olarak doğru ama oranlar modele/oyuna bağlı. | İfadeler yumuşatıldı, sınıflandırma aynı. |
+| Yenileme hızı, monitörün anakarta bağlı olması, hibrit GPU, tek kanal RAM, Bellek Bütünlüğü | — | Doğrudan donanım gerçeği ya da önceden kaynaklı. | Değişiklik yok. |
+
+Ek kaynaklar: [MakeUseOf — Oyun Modu testi](https://www.makeuseof.com/i-tested-windows-game-mode-for-month-what-benchmarks-actually-showed/), [WindowsForum — Oyun Modu ve işlemci darboğazı](https://windowsforum.com/windows-news.4/windows-11-game-mode-can-hurt-cpu-bound-fps-in-some-games.441277/), [PC Gamer — Windows 10 Oyun Modu hata düzeltmesi](https://pcgamer.com/microsoft-says-its-fixed-an-issue-in-windows-10-game-mode-that-results-in-lower-frame-rates), [TechSpot — 9950X3D incelemesi](https://www.techspot.com/review/2965-amd-ryzen-9-9950X3D/), [Tom's Hardware — HAGS testi](https://www.tomshardware.com/news/gpu-hardware-scheduling-tested), [PCWorld — Game Bar incelemesi](https://www.pcworld.com/article/3315624/gaming/game-bar-for-windows-10-review.html), [Xbox Wire — Game DVR optimizasyonu](https://news.xbox.com/en-us/?p=176295), [Microsoft — Pencereli oyun iyileştirmeleri](https://support.microsoft.com/en-us/topic/3f006843-2c7e-4ed0-9a5e-f9389e535952), [PC Gamer — Battlefield 6 Secure Boot](https://www.pcgamer.com/hardware/battlefield-6-requires-secure-boot-to-run-and-its-coming-to-more-games-soon-including-call-of-duty-black-ops-7-heres-what-it-is-why-linux-gamers-are-mad-about-it-and-how-to-enable-it), [Evetech — DDR5 JEDEC hızları](https://evezone.evetech.co.za/quick-bytes/why-is-ddr5-memory-not-running-at-its-advertised-speed).
+
+**İlke:** Bir kural ancak ölçülmüş ya da üretici tarafından belgelenmiş bir etkiye dayanıyorsa "öneri" veya "uyarı" verir; aksi hâlde "bilgi" olarak kalır ve otomatik düzeltme önerilmez.
+
+## 9. Kaynaklar
 
 - [TechSpot — Windows 11 vs Windows 10 oyun performansı (25H2)](https://www.techspot.com/article/3081-windows-11-vs-windows-10-gaming/)
 - [PC Games Hardware — 25H2 oyun benchmark'ları](https://www.pcgameshardware.de/Windows-Software-277633/News/25H-in-Spiele-Benchmarks-1493377/)

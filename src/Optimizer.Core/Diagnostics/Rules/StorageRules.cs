@@ -28,7 +28,8 @@ public sealed class DiskSpaceRule : IRule
                 Impact = disk.IsSystemDrive ? Impact.Medium : Impact.Low,
                 Title = $"{disk.RootPath} sürücüsünde {freeGiB:0.#} GB boş alan kaldı",
                 Detail = disk.IsSystemDrive
-                    ? "Sistem diskinde yer azaldığında sayfa dosyası, gölgelendirici önbelleği ve güncellemeler sorun çıkarır; takılmalar başlar."
+                    ? "Sistem diskinde yer azaldığında Windows güncellemeleri, sayfa dosyası ve oyunların gölgelendirici önbelleği için "
+                      + "yer kalmayabilir; bellek yetmediğinde oyunlar çökebilir."
                     : "Oyun güncellemeleri bu sürücüde yer bulamayabilir.",
                 Recommendation = "Kullanmadığınız oyunları kaldırın ya da Ayarlar > Sistem > Depolama > Temizleme önerileri'ni kullanın.",
             };
@@ -72,8 +73,9 @@ public sealed class GamesOnHddRule : IRule
                 Severity = Severity.Suggestion,
                 Impact = Impact.High,
                 Title = $"{disk.RootPath} sürücüsündeki oyun kütüphanesi mekanik diskte (HDD)",
-                Detail = $"Kütüphane: {string.Join(", ", disk.GameLibraries)}. Güncel oyunlar sürekli veri akışı yapar; HDD'de uzun yükleme süreleri "
-                         + "ve doku yüklenirken takılmalar olur. Bazı oyunlar SSD'yi zorunlu tutuyor.",
+                Detail = $"Kütüphane: {string.Join(", ", disk.GameLibraries)}. HDD'de yükleme süreleri uzar ve açık dünya oyunlarında "
+                         + "doku yüklenirken takılma görülebilir. Bazı yeni oyunlar sistem gereksinimlerinde SSD'yi şart koşuyor. "
+                         + "Eski ya da küçük oyunlarda fark az olabilir.",
                 Recommendation = "Sık oynadığınız oyunları SSD'ye taşıyın (Steam: Ayarlar > Depolama > oyunu seçip 'Taşı').",
             };
         }
