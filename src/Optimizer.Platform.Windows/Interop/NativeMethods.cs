@@ -210,4 +210,30 @@ internal static class NativeMethods
 
     [DllImport("kernel32.dll")]
     public static extern IntPtr LocalFree(IntPtr hMem);
+
+    [DllImport("powrprof.dll")]
+    public static extern uint PowerSetActiveScheme(IntPtr userRootPowerKey, ref Guid schemeGuid);
+
+    // ---------------- Display mode changes ----------------
+
+    public const int DM_PELSWIDTH = 0x80000;
+    public const int DM_PELSHEIGHT = 0x100000;
+    public const int DM_DISPLAYFREQUENCY = 0x400000;
+    public const uint CDS_UPDATEREGISTRY = 0x1;
+    public const uint CDS_TEST = 0x2;
+    public const int DISP_CHANGE_SUCCESSFUL = 0;
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    public static extern int ChangeDisplaySettingsEx(string deviceName, ref DEVMODE devMode, IntPtr hwnd, uint flags, IntPtr lParam);
+
+    // ---------------- Mouse ----------------
+
+    public const uint SPI_GETMOUSE = 0x0003;
+    public const uint SPI_SETMOUSE = 0x0004;
+    public const uint SPIF_UPDATEINIFILE = 0x01;
+    public const uint SPIF_SENDCHANGE = 0x02;
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool SystemParametersInfo(uint action, uint param, [In, Out] int[] values, uint winIni);
 }

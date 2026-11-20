@@ -2,7 +2,18 @@
 
 Oyun performansını etkileyen sistem ayarlarını teşhis eden masaüstü uygulaması (Windows; Linux desteği planlı).
 
-**Mevcut durum — Faz 1 (teşhis):** Uygulama yalnızca okur, hiçbir ayarı değiştirmez ve yönetici yetkisi istemez.
+**Mevcut durum — Faz 2 (güvenli düzeltme):** Uygulama sistemi tarar, sorunları listeler ve bir kısmını kullanıcının onayıyla düzeltebilir. Yönetici yetkisi istemez.
+
+## Değişiklikler nasıl güvenli tutuluyor
+
+- Hiçbir ayar kullanıcı "uygula" demeden değiştirilmez; düğmenin üstünde tam olarak hangi değerin neye döneceği yazar.
+- Uygulamadan **önce** eski değerler `%LocalAppData%\PerformanceOptimizer\journal` altına JSON olarak kaydedilir; kayıt defteri anahtarları ayrıca `.reg` dosyası olarak yedeklenir.
+- Değişiklikler sırayla uygulanır ve sonra doğrulanır. Herhangi bir adım başarısız olursa o ana kadar yapılanlar geri alınır.
+- Ekran yenileme hızı gibi görüntüyü bozabilecek değişiklikler 15 saniye içinde onaylanmazsa kendiliğinden geri alınır. Uygulama bu sırada kapanırsa bir sonraki açılışta geri alınır.
+- Geri alırken, sonradan kullanıcı ya da Windows tarafından değiştirilmiş bir değere dokunulmaz.
+- Arayüz açılmasa bile komut satırından her şey geri alınabilir: `optimizer revert-all`.
+
+Şu an düzeltilebilenler: ekran yenileme hızı, Oyun Modu, arka planda oyun kaydı, pencereli oyun iyileştirmeleri, fare ivmesi, güç tasarrufu planı.
 
 ## Ne kontrol ediliyor
 
@@ -25,10 +36,13 @@ Gereksinim: .NET 10 SDK
 dotnet run --project src/Optimizer.App
 ```
 
-Komut satırı raporu (JSON çıktısı için `--json`):
+Komut satırı aracı:
 
 ```powershell
-dotnet run --project src/Optimizer.Cli
+dotnet run --project src/Optimizer.Cli                 # rapor (JSON için --json)
+dotnet run --project src/Optimizer.Cli -- history      # değişiklik geçmişi
+dotnet run --project src/Optimizer.Cli -- revert <id>  # tek değişikliği geri al
+dotnet run --project src/Optimizer.Cli -- revert-all   # her şeyi geri al
 ```
 
 Testler:
@@ -45,6 +59,7 @@ dotnet test --solution PerformanceOptimizer.slnx
 | `Optimizer.Platform.Windows` | WMI, registry ve Win32 API ile salt okuma sistem taraması |
 | `Optimizer.App` | Avalonia arayüzü |
 | `Optimizer.Cli` | Komut satırı raporu |
-| `tests/Optimizer.Core.Tests` | Kural testleri |
+| `tests/Optimizer.Core.Tests` | Kural ve değişiklik motoru testleri |
+| `tests/Optimizer.Platform.Windows.Tests` | Kayıt defteri yürütücüsü testleri (yalnızca geçici bir test anahtarında çalışır) |
 
 Ayrıntılar: [ARASTIRMA.md](ARASTIRMA.md), [TEKNOLOJI.md](TEKNOLOJI.md)

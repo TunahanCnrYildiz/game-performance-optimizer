@@ -4,7 +4,7 @@
         x:Class="Optimizer.App.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Title="Performance Optimizer"
-        Width="1180" Height="780" MinWidth="820" MinHeight="560"
+        Width="1180" Height="800" MinWidth="860" MinHeight="580"
         WindowStartupLocation="CenterScreen">
 
   <Window.Styles>
@@ -13,32 +13,75 @@
       <Setter Property="CornerRadius" Value="8" />
       <Setter Property="Padding" Value="14,10" />
     </Style>
+    <Style Selector="Border.row">
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="BorderBrush" Value="{DynamicResource SystemControlForegroundBaseLowBrush}" />
+      <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundAltHighBrush}" />
+    </Style>
+    <Style Selector="Border.badge">
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Padding" Value="8,2" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="MinWidth" Value="64" />
+    </Style>
+    <Style Selector="Border.badge > TextBlock">
+      <Setter Property="Foreground" Value="White" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="HorizontalAlignment" Value="Center" />
+    </Style>
     <Style Selector="TextBlock.muted">
       <Setter Property="Opacity" Value="0.7" />
+    </Style>
+    <Style Selector="TextBlock.mono">
+      <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="TextWrapping" Value="Wrap" />
     </Style>
     <Style Selector="TextBlock.count">
       <Setter Property="FontSize" Value="26" />
       <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
+    <Style Selector="TextBlock.fixable">
+      <Setter Property="Foreground" Value="#2E9E5B" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
   </Window.Styles>
 
-  <Grid RowDefinitions="Auto,*" Margin="20">
+  <Grid RowDefinitions="Auto,Auto,*" Margin="20">
 
     <!-- Header -->
-    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,16">
+    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,12">
       <StackPanel Spacing="2">
         <TextBlock Text="Performance Optimizer" FontSize="22" FontWeight="SemiBold" />
         <TextBlock Classes="muted"
-                   Text="Teşhis modu: bilgisayarınızdaki hiçbir ayar değiştirilmez, yalnızca okunur." />
+                   Text="Hiçbir ayar siz onaylamadan değiştirilmez. Her değişiklik kaydedilir ve geri alınabilir." />
       </StackPanel>
       <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
         <TextBlock Classes="muted" Text="{Binding StatusText}" VerticalAlignment="Center" />
-        <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsScanning}" Width="80" VerticalAlignment="Center" />
+        <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsBusy}" Width="80" VerticalAlignment="Center" />
         <Button Content="Yeniden tara" Command="{Binding ScanCommand}" Classes="accent" />
       </StackPanel>
     </Grid>
 
-    <Grid Grid.Row="1" ColumnDefinitions="320,20,*">
+    <!-- Message bar -->
+    <Border Grid.Row="1" Classes="card" Margin="0,0,0,12" IsVisible="{Binding HasMessage}"
+            BorderThickness="1" BorderBrush="#3B7DD8"
+            Classes.error="{Binding MessageIsError}">
+      <Border.Styles>
+        <Style Selector="Border.error">
+          <Setter Property="BorderBrush" Value="#D64545" />
+        </Style>
+      </Border.Styles>
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock Text="{Binding Message}" TextWrapping="Wrap" VerticalAlignment="Center" />
+        <Button Grid.Column="1" Content="Kapat" Command="{Binding DismissMessageCommand}" Margin="12,0,0,0" />
+      </Grid>
+    </Border>
+
+    <Grid Grid.Row="2" ColumnDefinitions="320,20,*">
 
       <!-- System summary -->
       <ScrollViewer Grid.Column="0">
@@ -77,98 +120,177 @@
         </StackPanel>
       </ScrollViewer>
 
-      <!-- Findings -->
-      <Grid Grid.Column="2" RowDefinitions="Auto,Auto,*">
-        <UniformGrid Grid.Row="0" Columns="4" Margin="0,0,0,12">
-          <Border Classes="card" Margin="0,0,8,0">
-            <StackPanel>
-              <TextBlock Classes="count" Foreground="#D64545" Text="{Binding WarningCount}" />
-              <TextBlock Classes="muted" Text="Uyarı" />
-            </StackPanel>
-          </Border>
-          <Border Classes="card" Margin="0,0,8,0">
-            <StackPanel>
-              <TextBlock Classes="count" Foreground="#C98A00" Text="{Binding SuggestionCount}" />
-              <TextBlock Classes="muted" Text="Öneri" />
-            </StackPanel>
-          </Border>
-          <Border Classes="card" Margin="0,0,8,0">
-            <StackPanel>
-              <TextBlock Classes="count" Foreground="#3B7DD8" Text="{Binding InfoCount}" />
-              <TextBlock Classes="muted" Text="Bilgi" />
-            </StackPanel>
-          </Border>
-          <Border Classes="card">
-            <StackPanel>
-              <TextBlock Classes="count" Foreground="#2E9E5B" Text="{Binding OkCount}" />
-              <TextBlock Classes="muted" Text="Sorunsuz" />
-            </StackPanel>
-          </Border>
-        </UniformGrid>
+      <TabControl Grid.Column="2" SelectedIndex="{Binding SelectedTab}" Padding="0,8,0,0">
 
-        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
-          <TextBlock Text="Bulgular" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" />
-          <CheckBox Grid.Column="1" Content="Sorunsuz olanları göster" IsChecked="{Binding ShowPassed}" />
-        </Grid>
+        <!-- Findings -->
+        <TabItem Header="Bulgular">
+          <Grid RowDefinitions="Auto,Auto,*">
+            <UniformGrid Grid.Row="0" Columns="4" Margin="0,0,0,12">
+              <Border Classes="card" Margin="0,0,8,0">
+                <StackPanel>
+                  <TextBlock Classes="count" Foreground="#D64545" Text="{Binding WarningCount}" />
+                  <TextBlock Classes="muted" Text="Uyarı" />
+                </StackPanel>
+              </Border>
+              <Border Classes="card" Margin="0,0,8,0">
+                <StackPanel>
+                  <TextBlock Classes="count" Foreground="#C98A00" Text="{Binding SuggestionCount}" />
+                  <TextBlock Classes="muted" Text="Öneri" />
+                </StackPanel>
+              </Border>
+              <Border Classes="card" Margin="0,0,8,0">
+                <StackPanel>
+                  <TextBlock Classes="count" Foreground="#3B7DD8" Text="{Binding InfoCount}" />
+                  <TextBlock Classes="muted" Text="Bilgi" />
+                </StackPanel>
+              </Border>
+              <Border Classes="card">
+                <StackPanel>
+                  <TextBlock Classes="count" Foreground="#2E9E5B" Text="{Binding OkCount}" />
+                  <TextBlock Classes="muted" Text="Sorunsuz" />
+                </StackPanel>
+              </Border>
+            </UniformGrid>
 
-        <ScrollViewer Grid.Row="2">
-          <ItemsControl ItemsSource="{Binding Findings}">
-            <ItemsControl.ItemsPanel>
-              <ItemsPanelTemplate>
-                <StackPanel Spacing="6" />
-              </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-            <ItemsControl.ItemTemplate>
-              <DataTemplate x:DataType="vm:FindingViewModel">
-                <Panel>
-                <!-- Findings without details are shown as a flat row instead of a disabled (greyed-out) expander. -->
-                <Border IsVisible="{Binding !IsExpandable}" BorderThickness="1" CornerRadius="4" Padding="16,12,52,12"
-                        BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
-                        Background="{DynamicResource SystemControlBackgroundAltHighBrush}">
-                  <Grid ColumnDefinitions="Auto,*,Auto">
-                    <Border Background="{Binding SeverityBrush}" CornerRadius="4" Padding="8,2"
-                            VerticalAlignment="Center" Margin="0,0,12,0" MinWidth="64">
-                      <TextBlock Text="{Binding SeverityText}" Foreground="White" FontSize="11"
-                                 FontWeight="SemiBold" HorizontalAlignment="Center" />
-                    </Border>
-                    <TextBlock Grid.Column="1" Text="{Binding Title}" TextWrapping="Wrap" VerticalAlignment="Center" />
-                    <TextBlock Grid.Column="2" Classes="muted" FontSize="12" Text="{Binding CategoryText}"
-                               Margin="12,0,0,0" VerticalAlignment="Center" />
-                  </Grid>
-                </Border>
-                <Expander HorizontalAlignment="Stretch" IsVisible="{Binding IsExpandable}">
-                  <Expander.Header>
-                    <Grid ColumnDefinitions="Auto,*,Auto">
-                      <Border Background="{Binding SeverityBrush}" CornerRadius="4" Padding="8,2"
-                              VerticalAlignment="Center" Margin="0,0,12,0" MinWidth="64">
-                        <TextBlock Text="{Binding SeverityText}" Foreground="White" FontSize="11"
-                                   FontWeight="SemiBold" HorizontalAlignment="Center" />
+            <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+              <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                <TextBlock Text="Bulgular" FontSize="16" FontWeight="SemiBold" />
+                <TextBlock Classes="muted" VerticalAlignment="Bottom"
+                           Text="{Binding FixableCount, StringFormat='{}{0} tanesi otomatik düzeltilebilir'}" />
+              </StackPanel>
+              <CheckBox Grid.Column="1" Content="Sorunsuz olanları göster" IsChecked="{Binding ShowPassed}" />
+            </Grid>
+
+            <ScrollViewer Grid.Row="2">
+              <ItemsControl ItemsSource="{Binding Findings}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <StackPanel Spacing="6" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:FindingViewModel">
+                    <Panel>
+                      <!-- Findings without details: a flat row instead of a disabled (greyed-out) expander. -->
+                      <Border Classes="row" IsVisible="{Binding !IsExpandable}" Padding="16,12,52,12">
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                          <Border Classes="badge" Background="{Binding SeverityBrush}" Margin="0,0,12,0">
+                            <TextBlock Text="{Binding SeverityText}" />
+                          </Border>
+                          <TextBlock Grid.Column="1" Text="{Binding Title}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                          <TextBlock Grid.Column="2" Classes="muted" FontSize="12" Text="{Binding CategoryText}"
+                                     Margin="12,0,0,0" VerticalAlignment="Center" />
+                        </Grid>
                       </Border>
-                      <TextBlock Grid.Column="1" Text="{Binding Title}" TextWrapping="Wrap" VerticalAlignment="Center" />
-                      <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10" Margin="12,0,0,0" VerticalAlignment="Center">
-                        <TextBlock Classes="muted" FontSize="12" Text="{Binding ImpactText}" IsVisible="{Binding HasImpact}" />
-                        <TextBlock Classes="muted" FontSize="12" Text="{Binding CategoryText}" />
-                      </StackPanel>
-                    </Grid>
-                  </Expander.Header>
-                  <StackPanel Spacing="10" Margin="4,0">
-                    <TextBlock Text="{Binding Detail}" TextWrapping="Wrap" IsVisible="{Binding HasDetail}" />
-                    <StackPanel Spacing="2" IsVisible="{Binding HasRecommendation}">
-                      <TextBlock Text="Ne yapabilirsiniz" FontWeight="SemiBold" />
-                      <TextBlock Text="{Binding Recommendation}" TextWrapping="Wrap" />
-                    </StackPanel>
-                    <StackPanel Spacing="2" IsVisible="{Binding HasCaveat}">
-                      <TextBlock Text="Dikkat" FontWeight="SemiBold" Foreground="#C98A00" />
-                      <TextBlock Text="{Binding Caveat}" TextWrapping="Wrap" />
-                    </StackPanel>
-                  </StackPanel>
-                </Expander>
-                </Panel>
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
-        </ScrollViewer>
-      </Grid>
+
+                      <Expander HorizontalAlignment="Stretch" IsVisible="{Binding IsExpandable}">
+                        <Expander.Header>
+                          <Grid ColumnDefinitions="Auto,*,Auto">
+                            <Border Classes="badge" Background="{Binding SeverityBrush}" Margin="0,0,12,0">
+                              <TextBlock Text="{Binding SeverityText}" />
+                            </Border>
+                            <TextBlock Grid.Column="1" Text="{Binding Title}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10" Margin="12,0,0,0" VerticalAlignment="Center">
+                              <TextBlock Classes="fixable" Text="Düzeltilebilir" IsVisible="{Binding CanFix}" />
+                              <TextBlock Classes="muted" FontSize="12" Text="{Binding ImpactText}" IsVisible="{Binding HasImpact}" />
+                              <TextBlock Classes="muted" FontSize="12" Text="{Binding CategoryText}" />
+                            </StackPanel>
+                          </Grid>
+                        </Expander.Header>
+                        <StackPanel Spacing="10" Margin="4,0">
+                          <TextBlock Text="{Binding Detail}" TextWrapping="Wrap" IsVisible="{Binding HasDetail}" />
+                          <StackPanel Spacing="2" IsVisible="{Binding HasRecommendation}">
+                            <TextBlock Text="Ne yapabilirsiniz" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding Recommendation}" TextWrapping="Wrap" />
+                          </StackPanel>
+                          <StackPanel Spacing="2" IsVisible="{Binding HasCaveat}">
+                            <TextBlock Text="Dikkat" FontWeight="SemiBold" Foreground="#C98A00" />
+                            <TextBlock Text="{Binding Caveat}" TextWrapping="Wrap" />
+                          </StackPanel>
+
+                          <Border Classes="card" IsVisible="{Binding CanFix}">
+                            <StackPanel Spacing="8">
+                              <TextBlock Text="Otomatik düzeltme" FontWeight="SemiBold" />
+                              <TextBlock Classes="muted" Text="Yapılacak değişiklikler:" FontSize="12" />
+                              <ItemsControl ItemsSource="{Binding ChangeLines}">
+                                <ItemsControl.ItemTemplate>
+                                  <DataTemplate x:DataType="x:String">
+                                    <TextBlock Classes="mono" Text="{Binding}" />
+                                  </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                              </ItemsControl>
+                              <TextBlock Classes="muted" FontSize="12" Text="{Binding FixNote}" TextWrapping="Wrap" />
+                              <Button Classes="accent" Content="{Binding FixTitle}" Command="{Binding ApplyCommand}"
+                                      IsEnabled="{Binding !$parent[Window].((vm:MainWindowViewModel)DataContext).IsBusy}" />
+                            </StackPanel>
+                          </Border>
+                        </StackPanel>
+                      </Expander>
+                    </Panel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+          </Grid>
+        </TabItem>
+
+        <!-- History -->
+        <TabItem Header="Değişiklik geçmişi">
+          <Grid RowDefinitions="Auto,*">
+            <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+              <TextBlock Classes="muted" TextWrapping="Wrap" VerticalAlignment="Center"
+                         Text="Bu uygulamanın yaptığı her değişiklik, eski değerleriyle birlikte burada kayıtlı. Bir değer sonradan başka bir şey tarafından değiştirildiyse geri alırken ona dokunulmaz." />
+              <Button Grid.Column="1" Content="Tümünü geri al" Margin="12,0,0,0"
+                      Command="{Binding RevertAllCommand}" IsVisible="{Binding HasOpenChanges}" />
+            </Grid>
+
+            <TextBlock Grid.Row="1" Classes="muted" Text="Henüz hiçbir değişiklik yapılmadı."
+                       IsVisible="{Binding !HasHistory}" />
+
+            <ScrollViewer Grid.Row="1" IsVisible="{Binding HasHistory}">
+              <ItemsControl ItemsSource="{Binding History}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <StackPanel Spacing="6" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:HistoryEntryViewModel">
+                    <Border Classes="row" Padding="16,12">
+                      <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                          <Border Classes="badge" Background="{Binding StatusBrush}">
+                            <TextBlock Text="{Binding StatusText}" />
+                          </Border>
+                          <TextBlock Text="{Binding Title}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                          <TextBlock Classes="muted" FontSize="12" Text="{Binding DateText}" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <Button Grid.Column="1" Grid.RowSpan="3" VerticalAlignment="Top" Content="Geri al"
+                                Command="{Binding RevertCommand}" IsVisible="{Binding CanRevert}"
+                                IsEnabled="{Binding !$parent[Window].((vm:MainWindowViewModel)DataContext).IsBusy}" />
+                        <ItemsControl Grid.Row="1" Margin="0,8,0,0" ItemsSource="{Binding ChangeLines}">
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="x:String">
+                              <TextBlock Classes="mono" Text="{Binding}" />
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <ItemsControl Grid.Row="2" Margin="0,6,0,0" ItemsSource="{Binding Notes}" IsVisible="{Binding HasNotes}">
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="x:String">
+                              <TextBlock Classes="muted" FontSize="12" Text="{Binding}" TextWrapping="Wrap" />
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+          </Grid>
+        </TabItem>
+      </TabControl>
     </Grid>
   </Grid>
 </Window>
