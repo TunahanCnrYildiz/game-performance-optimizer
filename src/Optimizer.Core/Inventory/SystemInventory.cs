@@ -19,6 +19,9 @@ public sealed record SystemInventory
     public IReadOnlyList<DiskInfo> Disks { get; init; } = [];
     public IReadOnlyList<StartupItem> StartupItems { get; init; } = [];
 
+    /// <summary>Linux-only facts (kernel, sysctls, GameMode, ...); null on Windows.</summary>
+    public LinuxInfo? Linux { get; init; }
+
     /// <summary>Collectors that failed, so the UI can say what could not be checked.</summary>
     public IReadOnlyList<CollectorError> Errors { get; init; } = [];
 
@@ -27,6 +30,41 @@ public sealed record SystemInventory
 }
 
 public sealed record CollectorError(string Collector, string Message);
+
+public sealed record LinuxInfo
+{
+    public required string KernelVersion { get; init; }
+    public string? Distribution { get; init; }
+
+    /// <summary>XDG_SESSION_TYPE: "wayland", "x11" or "tty".</summary>
+    public string? SessionType { get; init; }
+
+    public string? Desktop { get; init; }
+    public string? CpuGovernor { get; init; }
+
+    /// <summary>scaling_driver, e.g. "amd-pstate-epp", "intel_pstate", "acpi-cpufreq".</summary>
+    public string? CpuFreqDriver { get; init; }
+
+    public string? EnergyPerformancePreference { get; init; }
+
+    /// <summary>power-profiles-daemon / tuned-ppd profile: "power-saver", "balanced", "performance".</summary>
+    public string? PowerProfile { get; init; }
+
+    public long? MaxMapCount { get; init; }
+    public int? SplitLockMitigate { get; init; }
+    public bool GameModeInstalled { get; init; }
+    public bool GameModeRunning { get; init; }
+
+    /// <summary>"enabled"/"disabled" and the active sched_ext scheduler, if any.</summary>
+    public string? SchedExtState { get; init; }
+    public string? SchedExtOps { get; init; }
+
+    public bool NtsyncAvailable { get; init; }
+    public string? TransparentHugePages { get; init; }
+
+    /// <summary>"apt", "dnf", "pacman", "zypper" — for install hints.</summary>
+    public string? PackageManager { get; init; }
+}
 
 public sealed record OsInfo(string Name, string Version, int Build, string Architecture);
 

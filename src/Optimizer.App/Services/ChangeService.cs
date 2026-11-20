@@ -1,6 +1,6 @@
-using Microsoft.Win32;
 using Optimizer.Core.Changes;
-using Optimizer.Platform.Windows.Elevation;
+using Optimizer.Core.Elevation;
+using Optimizer.Core.Platform;
 
 namespace Optimizer.App.Services;
 
@@ -9,13 +9,10 @@ public sealed record AdminApplyResult(ApplyResult Result, string? RestorePointEr
 /// <summary>
 /// Single entry point for changing and reverting. Per-user changes run in-process;
 /// anything marked <see cref="ITweak.RequiresAdmin"/> / <see cref="JournalEntry.RequiresAdmin"/>
-/// goes through a UAC-elevated copy of the app. Both write to the same journal.
+/// goes through the platform's elevated helper (UAC / pkexec). Both write to the same journal.
 /// </summary>
-public sealed class ChangeService(TweakEngine local, ElevatedRunner elevated)
+public sealed class ChangeService(TweakEngine local, IPlatformServices platform)
 {
-    private const string RunOnceKey = @"Software\Microsoft\Windows\CurrentVersion\RunOnce";
-    private const string RunOnceName = "PerformanceOptimizerAfterRestart";
-
     public Journal Journal => local.Journal;
 
     public async Task<AdminApplyResult> ApplyAsync(
@@ -32,7 +29,7 @@ public sealed class ChangeService(TweakEngine local, ElevatedRunner elevated)
             return new AdminApplyResult(result, null, false);
         }
 
-        var response = await elevated.RunAsync(new ElevatedRequest
+        var response = await platform.Elevation.RunAsync(new ElevatedRequest
         {
             Operation = ElevatedOperation.Apply,
             JournalDirectory = local.Journal.DirectoryPath,
@@ -63,7 +60,7 @@ public sealed class ChangeService(TweakEngine local, ElevatedRunner elevated)
         RevertResult result;
         if (entry.RequiresAdmin && !ElevatedHost.IsElevated())
         {
-            var response = await elevated.RunAsync(new ElevatedRequest
+            var response = await platform.Elevation.RunAsync(new ElevatedRequest
             {
                 Operation = ElevatedOperation.Revert,
                 JournalDirectory = local.Journal.DirectoryPath,
@@ -76,7 +73,7 @@ public sealed class ChangeService(TweakEngine local, ElevatedRunner elevated)
             result = await Task.Run(() => local.Revert(entryId));
         }
 
-        UpdateRunOnce();
+        platform.UpdateRestartHook(local.AwaitingRestart().Count > 0);
         return result;
     }
 
@@ -89,7 +86,7 @@ public sealed class ChangeService(TweakEngine local, ElevatedRunner elevated)
     }
 
     /// <summary>
-    /// Startup: reverts what a crash left Pending. Admin entries are included (one UAC prompt each);
+    /// Startup: reverts what a crash left Pending. Admin entries are included (one elevation prompt each);
     /// entries waiting for a restart are not — they go through the restart confirmation instead.
     /// </summary>
     public async Task<IReadOnlyList<RevertResult>> RecoverPendingAsync()
@@ -103,7 +100,7 @@ public sealed class ChangeService(TweakEngine local, ElevatedRunner elevated)
     public JournalEntry? Confirm(Guid entryId)
     {
         var confirmed = local.Confirm(entryId);
-        UpdateRunOnce();
+        platform.UpdateRestartHook(local.AwaitingRestart().Count > 0);
         return confirmed;
     }
 
@@ -116,26 +113,6 @@ public sealed class ChangeService(TweakEngine local, ElevatedRunner elevated)
     private void AfterApply(ITweak tweak, ApplyResult result)
     {
         if (tweak.RequiresRestart && result is { Success: true, NothingToDo: false })
-            UpdateRunOnce();
-    }
-
-    /// <summary>
-    /// While a change waits for a restart, the app is registered to open once at the next sign-in
-    /// so the user can confirm or undo it. Windows removes RunOnce entries after running them.
-    /// </summary>
-    private void UpdateRunOnce()
-    {
-        try
-        {
-            using var key = Registry.CurrentUser.CreateSubKey(RunOnceKey, writable: true);
-            if (local.AwaitingRestart().Count > 0 && Environment.ProcessPath is { } exe)
-                key.SetValue(RunOnceName, $"\"{exe}\" --after-restart");
-            else
-                key.DeleteValue(RunOnceName, throwOnMissingValue: false);
-        }
-        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or System.Security.SecurityException)
-        {
-            // Not critical: the user can still open the app manually after restarting.
-        }
+            platform.UpdateRestartHook(true);
     }
 }

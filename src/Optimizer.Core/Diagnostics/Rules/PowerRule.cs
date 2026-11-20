@@ -82,7 +82,7 @@ public sealed class PowerRule : IRule
                 Id = $"{Id}.ok",
                 Category = Category.Power,
                 Severity = Severity.Ok,
-                Title = $"Güç ayarları performansı kısıtlamıyor ({power.ActiveSchemeName ?? "bilinmeyen plan"})",
+                Title = "Güç ayarları performansı kısıtlamıyor" + (power.ActiveSchemeName is { } scheme ? $" ({scheme})" : ""),
                 Detail = power.HasBattery
                     ? null
                     : "Masaüstünde ileride oyun açıkken geçici olarak 'Yüksek performans' planına geçmek, oyun kapanınca geri dönmek mümkün olacak.",

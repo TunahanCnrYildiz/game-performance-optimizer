@@ -29,8 +29,10 @@ public sealed class RefreshRateRule : IRule
                     Title = $"{name} {current} Hz'de çalışıyor, {display.MaxRefreshHzAtCurrentResolution} Hz destekliyor",
                     Detail = "Ekran desteklediği en yüksek yenileme hızında çalışmıyor. Oyun daha yüksek FPS üretse bile ekranda en fazla "
                              + $"{current} kare görürsünüz.",
-                    Recommendation = "Ayarlar > Sistem > Ekran > Gelişmiş ekran > Yenileme hızı seçin bölümünden "
-                                     + $"{display.MaxRefreshHzAtCurrentResolution} Hz'i seçin.",
+                    Recommendation = inventory.Linux is null
+                        ? "Ayarlar > Sistem > Ekran > Gelişmiş ekran > Yenileme hızı seçin bölümünden "
+                          + $"{display.MaxRefreshHzAtCurrentResolution} Hz'i seçin."
+                        : $"Masaüstü ortamınızın ekran ayarlarından (GNOME: Ayarlar > Ekranlar, KDE: Sistem Ayarları > Ekran) {display.MaxRefreshHzAtCurrentResolution} Hz'i seçin.",
                 };
             }
             // Ordinary 60 Hz monitors list legacy 75 Hz modes (1024x768 etc.) in their EDID; only a

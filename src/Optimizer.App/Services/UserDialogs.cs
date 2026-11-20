@@ -16,6 +16,9 @@ public interface IUserDialogs
     /// "keep" — timeout, Escape, closing the window — returns false and the change is reverted.
     /// </summary>
     Task<bool> ConfirmWithTimeoutAsync(string title, string message, int seconds);
+
+    /// <summary>Open-file dialog; null when cancelled.</summary>
+    Task<string?> PickFileAsync(string title, IReadOnlyList<string> patterns);
 }
 
 public sealed class UserDialogs(Func<Window?> owner) : IUserDialogs
@@ -55,6 +58,22 @@ public sealed class UserDialogs(Func<Window?> owner) : IUserDialogs
 
         await Show(window);
         return result;
+    }
+
+    public async Task<string?> PickFileAsync(string title, IReadOnlyList<string> patterns)
+    {
+        if (owner() is not { } window)
+            return null;
+
+        var files = await window.StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions
+        {
+            Title = title,
+            AllowMultiple = false,
+            FileTypeFilter = patterns.Count == 0
+                ? null
+                : [new Avalonia.Platform.Storage.FilePickerFileType(title) { Patterns = patterns.ToList() }],
+        });
+        return files.FirstOrDefault()?.Path is { IsFile: true } uri ? uri.LocalPath : null;
     }
 
     private static string Countdown(int seconds) => $"{Math.Max(seconds, 0)} saniye içinde onaylamazsanız önceki ayara dönülecek.";

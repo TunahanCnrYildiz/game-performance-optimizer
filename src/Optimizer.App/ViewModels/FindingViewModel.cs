@@ -69,6 +69,7 @@ public sealed class FindingViewModel
         Category.Security => "Güvenlik",
         Category.Storage => "Depolama",
         Category.Background => "Arka plan",
+        Category.System => "Sistem",
         _ => "",
     };
 

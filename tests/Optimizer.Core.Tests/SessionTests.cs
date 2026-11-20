@@ -38,6 +38,17 @@ public sealed class SessionTests : IDisposable
     }
 
     [Fact]
+    public void Matcher_handles_linux_and_proton_paths()
+    {
+        var matcher = new GameMatcher(["/home/u/.local/share/Steam/steamapps/common"], [], []);
+
+        Assert.True(matcher.IsGame(P(1, "Game.exe", "/home/u/.local/share/Steam/steamapps/common/Game/Game.exe")));
+        Assert.True(matcher.IsGame(P(2, "native", "/home/u/.local/share/Steam/steamapps/common/Native/bin/native")));
+        Assert.False(matcher.IsGame(P(3, "firefox", "/usr/lib/firefox/firefox")));
+        Assert.False(matcher.IsGame(P(4, "UnityCrashHandler64.exe", "/home/u/.local/share/Steam/steamapps/common/Game/UnityCrashHandler64.exe")));
+    }
+
+    [Fact]
     public void Matcher_respects_user_lists()
     {
         var matcher = new GameMatcher([Lib], [@"C:\Games\Indie\indie.exe"], ["Game.exe"]);

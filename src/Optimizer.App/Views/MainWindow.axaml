@@ -318,7 +318,12 @@
                 </Grid>
               </Border>
 
-              <Border Classes="card">
+              <Border Classes="card" IsVisible="{Binding !SupportsEfficiencyMode}">
+                <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap"
+                           Text="Bu sistemde oyun sırasında uygulama kısma yok: Linux'ta yönetici olmayan bir program başka bir sürecin önceliğini düşürebilir ama geri yükseltemez, bu yüzden oyun bitince eski hâline döndürülemezdi. Ölçüm ve raporlar çalışır. Oyunun kendisine öncelik vermek için Feral GameMode'u kullanın (Steam başlatma seçeneği: gamemoderun %command%)." />
+              </Border>
+
+              <Border Classes="card" IsVisible="{Binding SupportsEfficiencyMode}">
                 <StackPanel Spacing="8">
                   <TextBlock Text="Oyun sırasında kısılan uygulamalar" FontWeight="SemiBold" />
                   <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap"
@@ -412,11 +417,24 @@
             <StackPanel Spacing="12">
 
               <Border Classes="card" IsVisible="{Binding IsUnavailable}" BorderThickness="1" BorderBrush="#D64545">
-                <TextBlock TextWrapping="Wrap"
-                           Text="Ölçüm aracı (Intel PresentMon) bulunamadı. Uygulamanın yanındaki tools klasöründe PresentMon.exe olmalı." />
+                <TextBlock TextWrapping="Wrap" Text="{Binding UnavailableReason}" />
               </Border>
 
-              <Border Classes="card" IsVisible="{Binding IsAvailable}">
+              <Border Classes="card" IsVisible="{Binding CanImport}">
+                <StackPanel Spacing="8">
+                  <TextBlock Text="Kare süresi kaydını içe aktar" FontWeight="SemiBold" />
+                  <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap" Text="{Binding ImportHint}" />
+                  <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                    <TextBlock Text="Etiket" VerticalAlignment="Center" />
+                    <TextBox Grid.Column="1" Text="{Binding Label}" PlaceholderText="ör. GameMode açık" />
+                  </Grid>
+                  <Button Classes="accent" Content="Kayıt dosyası seç…" Command="{Binding ImportCommand}" />
+                  <TextBlock Text="{Binding Status}" TextWrapping="Wrap"
+                             IsVisible="{Binding Status, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                </StackPanel>
+              </Border>
+
+              <Border Classes="card" IsVisible="{Binding CanAttach}">
                 <StackPanel Spacing="10">
                   <TextBlock Text="Yeni ölçüm" FontWeight="SemiBold" />
                   <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap"
@@ -515,9 +533,9 @@
               <Border Classes="card" BorderThickness="1" BorderBrush="#C98A00">
                 <StackPanel Spacing="6">
                   <TextBlock Text="Bu ayarlar yönetici izni gerektirir" FontWeight="SemiBold" />
-                  <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap"
-                             Text="Her işlemden önce ne değişeceği gösterilir ve onayınız alınır; ardından Windows yönetici izni (UAC) ister. Yalnızca bu sayfadaki ayarlar değiştirilebilir. Yeniden başlatma gerektirenler, yeniden başlattıktan sonra onaylamazsanız geri alınır. Hepsi Değişiklik geçmişinden geri alınabilir." />
-                  <CheckBox IsChecked="{Binding CreateRestorePoint}" Content="Değişiklikten önce Sistem Geri Yükleme noktası oluştur (önerilir)" />
+                  <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap" Text="{Binding Intro}" />
+                  <CheckBox IsChecked="{Binding CreateRestorePoint}" IsVisible="{Binding SupportsRestorePoint}"
+                            Content="Değişiklikten önce Sistem Geri Yükleme noktası oluştur (önerilir)" />
                 </StackPanel>
               </Border>
 
@@ -538,71 +556,64 @@
                 </Grid>
               </Border>
 
-              <Border Classes="card">
-                <StackPanel Spacing="6">
-                  <TextBlock Text="Donanım hızlandırmalı GPU zamanlaması (HAGS)" FontWeight="SemiBold" />
-                  <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap"
-                             Text="NVIDIA DLSS Kare Oluşturma için gereklidir. Testlerde FPS'e etkisi genelde ölçülemeyecek kadar küçük; emin değilseniz FPS ölçümü sekmesiyle önce/sonra karşılaştırın. Yeniden başlatma gerekir." />
-                  <TextBlock Text="{Binding HagsText}" TextWrapping="Wrap" />
-                  <StackPanel Orientation="Horizontal" Spacing="8">
-                    <Button Content="Aç" Command="{Binding EnableHagsCommand}" IsEnabled="{Binding CanEnableHags}" />
-                    <Button Content="Kapat" Command="{Binding DisableHagsCommand}" IsEnabled="{Binding CanDisableHags}" />
-                  </StackPanel>
-                </StackPanel>
-              </Border>
-
-              <Border Classes="card" BorderThickness="1" BorderBrush="#D64545">
-                <StackPanel Spacing="6">
-                  <TextBlock Text="Bellek Bütünlüğü (HVCI) — güvenlik ayarı" FontWeight="SemiBold" />
-                  <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap"
-                             Text="Kapatmak bazı işlemci darboğazlı oyunlarda %0–15 FPS kazandırabilir, ama sürücü kaynaklı saldırılara karşı önemli bir korumayı kaldırır ve bazı anti-cheat sistemleriyle sorun çıkarabilir. Yeniden başlatma gerekir." />
-                  <TextBlock Text="{Binding HvciText}" TextWrapping="Wrap" />
-                  <StackPanel Orientation="Horizontal" Spacing="8">
-                    <Button Content="Kapat" Command="{Binding DisableHvciCommand}" IsEnabled="{Binding CanDisableHvci}" />
-                    <Button Content="Aç (önerilen)" Command="{Binding EnableHvciCommand}" IsEnabled="{Binding CanEnableHvci}" />
-                  </StackPanel>
-                </StackPanel>
-              </Border>
-
-              <Border Classes="card">
-                <StackPanel Spacing="6">
-                  <TextBlock Text="Microsoft Defender: oyun klasörü istisnası" FontWeight="SemiBold" />
-                  <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap"
-                             Text="Gerçek zamanlı koruma açık kalır; yalnızca oyun kütüphanesi klasörleri taranmaz. Ortalama FPS'e etkisi çok küçük, yükleme sırasındaki anlık takılmaları azaltabilir. Bedeli: bu klasörlere düşen zararlı bir dosya fark edilmez." />
-                  <ItemsControl ItemsSource="{Binding GameFolders}">
-                    <ItemsControl.ItemTemplate>
-                      <DataTemplate x:DataType="x:String">
-                        <TextBlock Classes="mono" Text="{Binding}" />
-                      </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                  </ItemsControl>
-                  <TextBlock Text="{Binding DefenderText}" TextWrapping="Wrap" />
-                  <Button Content="Bu klasörleri taramadan hariç tut" Command="{Binding AddExclusionsCommand}" IsEnabled="{Binding CanAddExclusions}" />
-                </StackPanel>
-              </Border>
-
-              <Border Classes="card">
-                <StackPanel Spacing="6">
-                  <TextBlock Text="Başlangıç programları" FontWeight="SemiBold" />
-                  <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap"
-                             Text="Görev Yöneticisi'ndeki 'Başlangıç uygulamaları' ile aynı mekanizma: program silinmez, yalnızca Windows açılışında başlamaz. Tüm kullanıcılar için kayıtlı olanlar yönetici izni ister." />
-                  <ItemsControl ItemsSource="{Binding StartupItems}">
-                    <ItemsControl.ItemTemplate>
-                      <DataTemplate x:DataType="vm:StartupItemViewModel">
-                        <Grid ColumnDefinitions="*,90,150" Margin="0,3">
-                          <StackPanel>
-                            <TextBlock Text="{Binding Name}" />
-                            <TextBlock Classes="muted" FontSize="11" Text="{Binding Location}" />
-                          </StackPanel>
-                          <TextBlock Grid.Column="1" Text="{Binding StateText}" VerticalAlignment="Center" />
-                          <Button Grid.Column="2" HorizontalAlignment="Right" FontSize="12" Padding="8,2"
-                                  Content="{Binding ToggleText}" Command="{Binding ToggleCommand}" />
-                        </Grid>
-                      </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                  </ItemsControl>
-                </StackPanel>
-              </Border>
+              <ItemsControl ItemsSource="{Binding Groups}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <StackPanel Spacing="12" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:AdvancedGroupViewModel">
+                    <Border Classes="card" Classes.danger="{Binding IsSecuritySensitive}">
+                      <Border.Styles>
+                        <Style Selector="Border.danger">
+                          <Setter Property="BorderThickness" Value="1" />
+                          <Setter Property="BorderBrush" Value="#D64545" />
+                        </Style>
+                      </Border.Styles>
+                      <StackPanel Spacing="6">
+                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                        <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap" Text="{Binding Description}" />
+                        <ItemsControl ItemsSource="{Binding Lines}">
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="x:String">
+                              <TextBlock Classes="mono" Text="{Binding}" />
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Text="{Binding State}" TextWrapping="Wrap" IsVisible="{Binding HasState}" />
+                        <ItemsControl ItemsSource="{Binding Actions}">
+                          <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                              <StackPanel Orientation="Horizontal" Spacing="8" />
+                            </ItemsPanelTemplate>
+                          </ItemsControl.ItemsPanel>
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:AdvancedActionViewModel">
+                              <Button Content="{Binding Label}" Command="{Binding Command}" IsEnabled="{Binding Enabled}" />
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <ItemsControl ItemsSource="{Binding SubItems}">
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:AdvancedSubItemViewModel">
+                              <Grid ColumnDefinitions="*,110,150" Margin="0,3">
+                                <StackPanel>
+                                  <TextBlock Text="{Binding Name}" />
+                                  <TextBlock Classes="muted" FontSize="11" Text="{Binding Detail}" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <TextBlock Grid.Column="1" Text="{Binding State}" VerticalAlignment="Center" />
+                                <Button Grid.Column="2" HorizontalAlignment="Right" FontSize="12" Padding="8,2"
+                                        Content="{Binding ActionLabel}" Command="{Binding Command}" IsVisible="{Binding HasAction}" />
+                              </Grid>
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                      </StackPanel>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
             </StackPanel>
           </ScrollViewer>
         </TabItem>

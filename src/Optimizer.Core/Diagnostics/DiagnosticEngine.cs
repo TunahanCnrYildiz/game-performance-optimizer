@@ -28,6 +28,21 @@ public sealed class DiagnosticEngine(IEnumerable<IRule> rules)
         new StartupItemsRule(),
     ]);
 
+    /// <summary>Platform-neutral rules plus Linux-specific ones; Windows-only rules are left out.</summary>
+    public static DiagnosticEngine CreateForLinux() => new(
+    [
+        new RefreshRateRule(),
+        new MemoryChannelRule(),
+        new PowerRule(),
+        new DiskSpaceRule(),
+        new GamesOnHddRule(),
+        new LinuxPowerProfileRule(),
+        new LinuxCpuGovernorRule(),
+        new LinuxMaxMapCountRule(),
+        new LinuxGameModeRule(),
+        new LinuxSplitLockRule(),
+    ]);
+
     /// <summary>
     /// Runs every rule. A rule that throws is reported as a finding instead of
     /// aborting the whole scan.

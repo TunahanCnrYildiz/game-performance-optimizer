@@ -3,10 +3,12 @@
     <Project Path="src/Optimizer.App/Optimizer.App.csproj" />
     <Project Path="src/Optimizer.Cli/Optimizer.Cli.csproj" />
     <Project Path="src/Optimizer.Core/Optimizer.Core.csproj" />
+    <Project Path="src/Optimizer.Platform.Linux/Optimizer.Platform.Linux.csproj" />
     <Project Path="src/Optimizer.Platform.Windows/Optimizer.Platform.Windows.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Optimizer.Core.Tests/Optimizer.Core.Tests.csproj" />
+    <Project Path="tests/Optimizer.Platform.Linux.Tests/Optimizer.Platform.Linux.Tests.csproj" />
     <Project Path="tests/Optimizer.Platform.Windows.Tests/Optimizer.Platform.Windows.Tests.csproj" />
   </Folder>
 </Solution>

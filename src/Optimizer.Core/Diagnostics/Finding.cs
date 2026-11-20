@@ -28,6 +28,7 @@ public enum Category
     Security,
     Storage,
     Background,
+    System,
 }
 
 public sealed record Finding

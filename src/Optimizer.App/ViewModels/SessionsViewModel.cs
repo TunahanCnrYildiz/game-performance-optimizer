@@ -13,8 +13,9 @@ public sealed partial class SessionsViewModel : ObservableObject
     private readonly SessionStore _store;
     private readonly DispatcherTimer _clock = new() { Interval = TimeSpan.FromSeconds(15) };
 
-    public SessionsViewModel(SessionMonitor monitor, SettingsStore settings, SessionStore store)
+    public SessionsViewModel(SessionMonitor monitor, SettingsStore settings, SessionStore store, bool supportsEfficiencyMode = true)
     {
+        SupportsEfficiencyMode = supportsEfficiencyMode;
         _monitor = monitor;
         _settings = settings;
         _store = store;
@@ -42,6 +43,12 @@ public sealed partial class SessionsViewModel : ObservableObject
     public ObservableCollection<EfficiencyAppViewModel> EfficiencyApps { get; } = [];
 
     public bool HasReports => Reports.Count > 0;
+
+    /// <summary>
+    /// False on Linux: an unprivileged process can lower another process's priority but not raise it
+    /// back, so the change could not be undone after the game.
+    /// </summary>
+    public bool SupportsEfficiencyMode { get; }
     public bool HasEfficiencyApps => EfficiencyApps.Count > 0;
 
     [ObservableProperty]
@@ -201,7 +208,8 @@ public sealed class SessionReportViewModel
     }
 
     public string CpuText => Report.Cpu is { } c
-        ? $"İşlemci: ortalama %{c.AvgUtilizationPercent:0} kullanım, ortalama {c.AvgEffectiveMhz:0} MHz (en düşük {c.MinEffectiveMhz:0} MHz)."
+        ? $"İşlemci: ortalama %{c.AvgUtilizationPercent:0} kullanım"
+          + (c.AvgEffectiveMhz > 0 ? $", ortalama {c.AvgEffectiveMhz:0} MHz (en düşük {c.MinEffectiveMhz:0} MHz)." : "; saat hızı bu sistemde okunamıyor.")
         : "İşlemci saat bilgisi okunamadı.";
 
     public bool IsCpuLimited => Report.Cpu is { LimitedSamplePercent: > 10 };
@@ -225,7 +233,7 @@ public sealed partial class ProcessUsageViewModel(ProcessUsage usage, SessionsVi
     public string IoText => $"{usage.AvgIoBytesPerSec / MiB:0.00}";
     public string MemoryText => $"{usage.PeakWorkingSetBytes / MiB:0}";
 
-    public bool CanThrottle => !SessionMonitor.IsProtected(usage.Name);
+    public bool CanThrottle => owner.SupportsEfficiencyMode && !SessionMonitor.IsProtected(usage.Name);
     public bool IsListed => owner.IsInEfficiencyList(usage.Name);
     public string ToggleText => IsListed ? "Listeden çıkar" : "Oyun sırasında kıs";
 

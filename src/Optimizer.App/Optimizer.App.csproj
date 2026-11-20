@@ -1,9 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net10.0-windows</TargetFramework>
+    <TargetFrameworks>net10.0-windows;net10.0</TargetFrameworks>
     <AssemblyName>PerformanceOptimizer</AssemblyName>
-    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationManifest Condition="'$(TargetFramework)' == 'net10.0-windows'">app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
   <ItemGroup>
@@ -17,10 +17,11 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Optimizer.Core\Optimizer.Core.csproj" />
-    <ProjectReference Include="..\Optimizer.Platform.Windows\Optimizer.Platform.Windows.csproj" />
+    <ProjectReference Include="..\Optimizer.Platform.Windows\Optimizer.Platform.Windows.csproj" Condition="'$(TargetFramework)' == 'net10.0-windows'" />
+    <ProjectReference Include="..\Optimizer.Platform.Linux\Optimizer.Platform.Linux.csproj" Condition="'$(TargetFramework)' == 'net10.0'" />
   </ItemGroup>
   <!-- Intel PresentMon (MIT), downloaded into tools\presentmon; not stored in git. -->
-  <ItemGroup Condition="Exists('..\..\tools\presentmon\PresentMon.exe')">
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0-windows' And Exists('..\..\tools\presentmon\PresentMon.exe')">
     <None Include="..\..\tools\presentmon\PresentMon.exe" Link="tools\PresentMon.exe" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\tools\presentmon\LICENSE.txt" Link="tools\PresentMon-LICENSE.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

@@ -5,7 +5,6 @@ using CommunityToolkit.Mvvm.Input;
 using Optimizer.App.Services;
 using Optimizer.Core.Benchmarks;
 using Optimizer.Core.Sessions;
-using Optimizer.Platform.Windows.Benchmarks;
 
 namespace Optimizer.App.ViewModels;
 
@@ -16,15 +15,15 @@ public sealed record TargetProcess(int Pid, string Name, string Title)
 
 public sealed partial class BenchmarksViewModel : ObservableObject
 {
-    private readonly PresentMonRunner? _runner;
+    private readonly IFrameCapture _capture;
     private readonly BenchmarkStore _store;
     private readonly SessionMonitor _monitor;
     private readonly IUserDialogs _dialogs;
     private CancellationTokenSource? _cts;
 
-    public BenchmarksViewModel(PresentMonRunner? runner, BenchmarkStore store, SessionMonitor monitor, IUserDialogs dialogs)
+    public BenchmarksViewModel(IFrameCapture capture, BenchmarkStore store, SessionMonitor monitor, IUserDialogs dialogs)
     {
-        _runner = runner;
+        _capture = capture;
         _store = store;
         _monitor = monitor;
         _dialogs = dialogs;
@@ -32,8 +31,11 @@ public sealed partial class BenchmarksViewModel : ObservableObject
         RefreshTargets();
     }
 
-    public bool IsAvailable => _runner is not null;
-    public bool IsUnavailable => _runner is null;
+    public bool CanAttach => _capture.CanAttach;
+    public bool CanImport => _capture.CanImport;
+    public bool IsUnavailable => _capture.UnavailableReason is not null;
+    public string? UnavailableReason => _capture.UnavailableReason;
+    public string? ImportHint => _capture.ImportHint;
 
     public ObservableCollection<TargetProcess> Targets { get; } = [];
     public ObservableCollection<BenchmarkRunViewModel> Runs { get; } = [];
@@ -121,7 +123,7 @@ public sealed partial class BenchmarksViewModel : ObservableObject
         SelectedTarget = Targets.FirstOrDefault(t => t.Pid == keep) ?? Targets.FirstOrDefault();
     }
 
-    private bool CanMeasure() => !IsMeasuring && SelectedTarget is not null && _runner is not null;
+    private bool CanMeasure() => !IsMeasuring && SelectedTarget is not null && _capture.CanAttach;
 
     [RelayCommand(CanExecute = nameof(CanMeasure))]
     private async Task MeasureAsync()
@@ -135,7 +137,7 @@ public sealed partial class BenchmarksViewModel : ObservableObject
         try
         {
             SetStatus($"{delay} saniye içinde oyuna geçin ve her seferinde aynı sahnede oynayın. Ardından {Seconds} saniye ölçülecek; bitince buraya dönün.", false);
-            var result = await _runner!.CaptureAsync(new CaptureRequest(target.Pid, Seconds, delay), _cts.Token);
+            var result = await _capture.CaptureAsync(new CaptureRequest(target.Pid, Seconds, delay), _cts.Token);
 
             if (!result.Success && result.MayNeedElevation)
             {
@@ -148,7 +150,7 @@ public sealed partial class BenchmarksViewModel : ObservableObject
                 if (retry)
                 {
                     SetStatus($"{delay} saniye içinde oyuna geçin; {Seconds} saniye ölçülecek.", false);
-                    result = await _runner.CaptureAsync(new CaptureRequest(target.Pid, Seconds, delay, Elevated: true), _cts.Token);
+                    result = await _capture.CaptureAsync(new CaptureRequest(target.Pid, Seconds, delay, Elevated: true), _cts.Token);
                 }
             }
 
@@ -192,6 +194,43 @@ public sealed partial class BenchmarksViewModel : ObservableObject
 
     [RelayCommand]
     private void Cancel() => _cts?.Cancel();
+
+    /// <summary>Linux: read a frame-time log the game wrote itself (MangoHud) and save it like a measurement.</summary>
+    [RelayCommand]
+    private async Task ImportAsync()
+    {
+        var path = await _dialogs.PickFileAsync("Kare süresi kaydı seçin", _capture.ImportPatterns);
+        if (path is null)
+            return;
+
+        try
+        {
+            var (game, frames) = _capture.Import(path);
+            var summary = FrameStatistics.Compute(FrameStatistics.MainSwapChain(frames));
+            if (summary is null)
+            {
+                SetStatus($"Kayıtta yeterli kare yok ({frames.Count}).", true);
+                return;
+            }
+
+            var run = new BenchmarkRun
+            {
+                Id = Guid.NewGuid(),
+                GameName = game ?? Path.GetFileNameWithoutExtension(path),
+                Label = string.IsNullOrWhiteSpace(Label) ? "ölçüm" : Label.Trim(),
+                CapturedAt = File.GetLastWriteTime(path),
+                Summary = summary,
+            };
+            _store.Save(run);
+            LoadRuns();
+            CompareGame = run.GameName;
+            SetStatus($"Kayıt içe aktarıldı: ortalama {summary.AvgFps:0} FPS, 1% low {summary.Low1PercentFps:0} FPS.", false);
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Kayıt okunamadı: {ex.Message}", true);
+        }
+    }
 
     private void Delete(BenchmarkRunViewModel run)
     {

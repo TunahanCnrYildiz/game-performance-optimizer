@@ -16,6 +16,8 @@ namespace Optimizer.Core.Changes;
 [JsonDerivedType(typeof(MouseAccelerationChange), "mouseAcceleration")]
 [JsonDerivedType(typeof(ProcessEfficiencyChange), "processEfficiency")]
 [JsonDerivedType(typeof(DefenderExclusionChange), "defenderExclusion")]
+[JsonDerivedType(typeof(SysctlChange), "sysctl")]
+[JsonDerivedType(typeof(PowerProfileChange), "powerProfile")]
 public abstract record Change
 {
     /// <summary>True once the executor has recorded the original state.</summary>
@@ -88,6 +90,25 @@ public sealed record MouseParameters(int Threshold1, int Threshold2, int Acceler
 public sealed record DefenderExclusionChange(string Path, bool? ExistedBefore) : Change
 {
     public override string Describe() => $"Defender tarama istisnası: {Path}";
+}
+
+/// <summary>
+/// A Linux kernel parameter: set at runtime and persisted in this app's own drop-in file
+/// (/etc/sysctl.d/99-performance-optimizer.conf), never in /etc/sysctl.conf. Reverting
+/// restores the runtime value and the drop-in line as they were.
+/// </summary>
+public sealed record SysctlChange(string Key, string? Before, string After) : Change
+{
+    /// <summary>The key's line in our drop-in before the change; null = not present.</summary>
+    public string? DropInBefore { get; init; }
+
+    public override string Describe() => $"sysctl {Key}: {(Captured ? Before ?? "(yok)" : "…")} → {After}";
+}
+
+/// <summary>power-profiles-daemon profile ("power-saver", "balanced", "performance").</summary>
+public sealed record PowerProfileChange(string? Before, string After) : Change
+{
+    public override string Describe() => $"Güç profili: {(Captured ? Before ?? "?" : "…")} → {After}";
 }
 
 /// <summary>Priority class and EcoQoS (power throttling) masks of a running process.</summary>

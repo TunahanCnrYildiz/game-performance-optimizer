@@ -11,11 +11,6 @@ using Optimizer.Core.Benchmarks;
 using Optimizer.Core.Changes;
 using Optimizer.Core.Diagnostics;
 using Optimizer.Core.Sessions;
-using Optimizer.Platform.Windows;
-using Optimizer.Platform.Windows.Benchmarks;
-using Optimizer.Platform.Windows.Elevation;
-using Optimizer.Platform.Windows.Changes;
-using Optimizer.Platform.Windows.Sessions;
 
 namespace Optimizer.App;
 
@@ -30,36 +25,37 @@ public sealed class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            var settings = new SettingsStore(WindowsAppPaths.SettingsFile);
-            var sessionStore = new SessionStore(WindowsAppPaths.SessionsDirectory);
-            var engine = new TweakEngine(new WindowsChangeExecutor(), new Journal(WindowsAppPaths.JournalDirectory), AppPaths.Version);
+            var platform = PlatformFactory.Create();
+            var settings = new SettingsStore(platform.Paths.Settings);
+            var sessionStore = new SessionStore(platform.Paths.Sessions);
+            var engine = new TweakEngine(platform.Executor, new Journal(platform.Paths.Journal), AppPaths.Version);
 
             _monitor = new SessionMonitor(
-                new WindowsSystemSampler(),
+                platform.CreateSampler(),
                 () =>
                 {
                     var s = settings.Load();
-                    return new GameMatcher(GameLibraryLocator.FindGameRoots(), s.UserGames, s.IgnoredGames);
+                    return new GameMatcher(platform.FindGameRoots(), s.UserGames, s.IgnoredGames);
                 },
-                settings.Load,
+                // Without efficiency-mode support the throttle list is ignored, so nothing is ever left changed.
+                platform.SupportsEfficiencyMode ? settings.Load : () => settings.Load() with { EfficiencyModeApps = [] },
                 engine,
                 sessionStore);
 
-            var sessions = new SessionsViewModel(_monitor, settings, sessionStore);
+            var sessions = new SessionsViewModel(_monitor, settings, sessionStore, platform.SupportsEfficiencyMode);
             var dialogs = new UserDialogs(() => desktop.MainWindow);
-            var changes = new ChangeService(engine, ElevatedRunner.ForCurrentProcess());
-            var benchmarks = new BenchmarksViewModel(
-                PresentMonRunner.Locate(), new BenchmarkStore(WindowsAppPaths.BenchmarksDirectory), _monitor, dialogs);
+            var changes = new ChangeService(engine, platform);
+            var benchmarks = new BenchmarksViewModel(platform.FrameCapture, new BenchmarkStore(platform.Paths.Benchmarks), _monitor, dialogs);
             var window = new MainWindow();
             var viewModel = new MainWindowViewModel(
-                new WindowsInventoryCollector(),
-                DiagnosticEngine.CreateDefault(),
-                new WindowsTweakCatalog(),
+                platform.Inventory,
+                platform.CreateDiagnostics(),
+                platform.Tweaks,
                 changes,
                 dialogs,
                 sessions,
                 benchmarks,
-                new AdvancedViewModel(changes, dialogs));
+                new AdvancedViewModel(changes, dialogs, platform));
 
             var icon = new WindowIcon(AssetLoader.Open(new Uri("avares://PerformanceOptimizer/Assets/icon.png")));
             window.Icon = icon;

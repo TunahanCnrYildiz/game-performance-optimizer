@@ -156,7 +156,9 @@ public sealed class SessionMonitor : IDisposable
 
     private void BeginSession(ProcessSample game, SystemSample sample)
     {
-        var name = Path.GetFileNameWithoutExtension(game.Path) ?? game.Name;
+        // Split on both separators: a Proton game on Linux can still report a Windows-style path.
+        var file = game.Path!.Replace('\\', '/');
+        var name = Path.GetFileNameWithoutExtension(file[(file.LastIndexOf('/') + 1)..]) is { Length: > 0 } n ? n : game.Name;
         Current = new ActiveSession(name, game.Path!, game.Pid, _clock.GetLocalNow());
         _aggregator = new SessionAggregator(name, game.Path!, game.Name, Current.StartedAt);
         _skipNextSample = true;

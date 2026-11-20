@@ -1,6 +1,7 @@
 using Optimizer.Core.Changes;
 using Optimizer.Core.Inventory;
 using Optimizer.Platform.Windows.Changes;
+using Optimizer.Core.Elevation;
 using Optimizer.Platform.Windows.Elevation;
 
 namespace Optimizer.Platform.Windows.Tests;

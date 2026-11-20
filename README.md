@@ -1,8 +1,16 @@
 # Performance Optimizer
 
-Oyun performansını etkileyen sistem ayarlarını teşhis eden masaüstü uygulaması (Windows; Linux desteği planlı).
+Oyun performansını etkileyen sistem ayarlarını teşhis eden masaüstü uygulaması (Windows ve Linux).
 
 **Mevcut durum — Faz 5 (gelişmiş ayarlar):** Uygulama sistemi tarar, sorunları listeler, bir kısmını kullanıcının onayıyla düzeltir, oyun oynarken arka planda neyin kaynak tükettiğini ölçer, bir ayarın FPS'e gerçek etkisini önce/sonra ölçümüyle gösterir ve "Gelişmiş" sekmesinde yönetici gerektiren birkaç ayarı güvenli şekilde değiştirebilir. Uygulamanın kendisi yönetici olarak çalışmaz.
+
+## Linux
+
+- Teşhis: dağıtım/çekirdek, işlemci, bellek, ekran kartları (`/sys/class/drm`), ekranlar (`xrandr`), güç profili ve işlemci frekans sürücüsü, `vm.max_map_count`, split-lock ayarı, Feral GameMode, sched_ext, diskler. Kurallar: düşük `vm.max_map_count`, güç tasarrufu profili, `acpi-cpufreq` ile `powersave`, GameMode kurulu değil (dağıtıma uygun kurulum komutuyla), split-lock bilgisi; ayrıca yenileme hızı, bellek, disk ve pil kuralları.
+- Değişiklikler: `vm.max_map_count` ve `kernel.split_lock_mitigate` yalnızca uygulamanın kendi dosyasına (`/etc/sysctl.d/99-performance-optimizer.conf`) yazılır; `pkexec` ile, izin listesi denetimiyle. Güç profili yönetici izni olmadan `powerprofilesctl` ile değiştirilir. Hepsi geri alınabilir.
+- Oyun oturumları: süreç başına işlemci, bellek, G/Ç ve (DRM fdinfo ile) ekran kartı kullanımı; Proton oyunları Windows `.exe` adıyla tanınır. Oyun sırasında uygulama kısma Linux'ta yok: yönetici olmayan bir program başka bir sürecin önceliğini düşürebilir ama geri yükseltemez.
+- FPS: Linux'ta çalışan bir oyuna dışarıdan bağlanıp kare süresi okumak mümkün olmadığından MangoHud kayıtları (`.csv`) içe aktarılır.
+- Doğrulama: Linux kodu, örnek `/proc`–`/sys` dosyalarıyla her platformda; ayrıca Docker'da (`mcr.microsoft.com/dotnet/sdk:10.0`) gerçek Linux çekirdeği üzerinde test edilir. `pkexec` akışı ve masaüstü arayüzü gerçek bir Linux masaüstünde henüz denenmedi.
 
 ## Gelişmiş ayarlar (yönetici izni gerektirenler)
 
@@ -58,18 +66,20 @@ Oyun performansını etkileyen sistem ayarlarını teşhis eden masaüstü uygul
 Gereksinim: .NET 10 SDK
 
 ```powershell
-dotnet run --project src/Optimizer.App
+dotnet run --project src/Optimizer.App -f net10.0-windows   # Linux'ta: -f net10.0
 ```
 
 Komut satırı aracı:
 
 ```powershell
+dotnet run --project src/Optimizer.Cli -f net10.0-windows -- report   # Linux'ta -f net10.0; aşağıdakiler için de aynı
 dotnet run --project src/Optimizer.Cli                 # rapor (JSON için --json)
 dotnet run --project src/Optimizer.Cli -- history      # değişiklik geçmişi
 dotnet run --project src/Optimizer.Cli -- revert <id>  # tek değişikliği geri al
 dotnet run --project src/Optimizer.Cli -- revert-all   # her şeyi geri al
 dotnet run --project src/Optimizer.Cli -- sample 10    # şu an neyin kaynak kullandığını 10 sn ölç
-dotnet run --project src/Optimizer.Cli -- bench <pid|ad> 30 "etiket"   # FPS ölçümü (--admin: yönetici izniyle)
+dotnet run --project src/Optimizer.Cli -- bench <pid|ad> 30 "etiket"   # FPS ölçümü, Windows (--admin: yönetici izniyle)
+dotnet run --project src/Optimizer.Cli -- import <mangohud.csv> "etiket" # FPS kaydı içe aktarma, Linux
 ```
 
 Testler:
@@ -83,10 +93,12 @@ dotnet test --solution PerformanceOptimizer.slnx
 | Proje | Görev |
 |---|---|
 | `Optimizer.Core` | Platformdan bağımsız envanter modeli ve teşhis kuralları |
-| `Optimizer.Platform.Windows` | WMI, registry ve Win32 API ile salt okuma sistem taraması |
+| `Optimizer.Platform.Windows` | Windows: WMI, kayıt defteri, Win32, PresentMon, UAC yardımcısı |
+| `Optimizer.Platform.Linux` | Linux: /proc, /sys, sysctl, power-profiles-daemon, MangoHud, pkexec yardımcısı |
 | `Optimizer.App` | Avalonia arayüzü |
 | `Optimizer.Cli` | Komut satırı raporu |
 | `tests/Optimizer.Core.Tests` | Kural ve değişiklik motoru testleri |
+| `tests/Optimizer.Platform.Linux.Tests` | Linux toplayıcı, ayrıştırıcı, sysctl ve izin listesi testleri (örnek dosyalarla; biri yalnızca gerçek Linux'ta) |
 | `tests/Optimizer.Platform.Windows.Tests` | Kayıt defteri, süreç örnekleyici ve uçtan uca oturum testleri (yalnızca geçici test anahtarı ve testin kendi başlattığı süreçler üzerinde çalışır) |
 
 Ayrıntılar: [ARASTIRMA.md](ARASTIRMA.md), [TEKNOLOJI.md](TEKNOLOJI.md)

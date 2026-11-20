@@ -5,21 +5,26 @@ using Optimizer.Core.Benchmarks;
 
 namespace Optimizer.Platform.Windows.Benchmarks;
 
-public sealed record CaptureRequest(int ProcessId, int Seconds, int DelaySeconds = 0, bool Elevated = false);
-
-public sealed record CaptureResult(bool Success, IReadOnlyList<FrameRecord> Frames, string? Error = null, bool MayNeedElevation = false);
-
 /// <summary>
 /// Runs Intel's PresentMon (MIT) for a timed capture of one process and parses its CSV.
 /// Works without administrator rights for processes started by the same user; a game
 /// running elevated or under another account needs <see cref="CaptureRequest.Elevated"/>,
 /// which shows a UAC prompt for PresentMon only.
 /// </summary>
-public sealed class PresentMonRunner(string executablePath)
+public sealed class PresentMonRunner(string executablePath) : IFrameCapture
 {
     private const string SessionName = "PerformanceOptimizer";
 
     public string ExecutablePath { get; } = executablePath;
+
+    public bool CanAttach => true;
+    public bool CanImport => false;
+    public string? UnavailableReason => null;
+    public string? ImportHint => null;
+    public IReadOnlyList<string> ImportPatterns => [];
+
+    public (string? GameName, IReadOnlyList<FrameRecord> Frames) Import(string path) =>
+        throw new NotSupportedException("Windows'ta ölçüm doğrudan yapılır.");
 
     /// <summary>PresentMon shipped next to the app (tools\PresentMon.exe), or null.</summary>
     public static PresentMonRunner? Locate()

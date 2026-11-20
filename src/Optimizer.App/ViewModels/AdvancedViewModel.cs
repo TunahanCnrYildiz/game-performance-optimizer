@@ -1,39 +1,34 @@
 using System.Collections.ObjectModel;
-using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Optimizer.App.Services;
 using Optimizer.Core.Changes;
-using Optimizer.Core.Inventory;
-using Optimizer.Platform.Windows.Changes;
-using Optimizer.Platform.Windows.Sessions;
+using Optimizer.Core.Platform;
 
 namespace Optimizer.App.ViewModels;
 
-/// <summary>Administrator-level settings. Every action: explicit confirmation → (restore point) → UAC → journal.</summary>
-public sealed partial class AdvancedViewModel(ChangeService changes, IUserDialogs dialogs) : ObservableObject
+/// <summary>
+/// Administrator-level settings, whatever the platform offers. Every action: explicit
+/// confirmation → (restore point) → elevation prompt → journal.
+/// </summary>
+public sealed partial class AdvancedViewModel(ChangeService changes, IUserDialogs dialogs, IPlatformServices platform) : ObservableObject
 {
     public event Func<Task>? Changed;
 
-    public ObservableCollection<StartupItemViewModel> StartupItems { get; } = [];
-    public ObservableCollection<string> GameFolders { get; } = [];
+    public ObservableCollection<AdvancedGroupViewModel> Groups { get; } = [];
+
+    public bool SupportsRestorePoint => platform.Advanced.SupportsRestorePoint;
+
+    public string ElevationName => platform.Name == "Windows" ? "Windows yönetici izni (UAC)" : "yönetici parolası (pkexec)";
+
+    public string Intro =>
+        $"Her işlemden önce ne değişeceği gösterilir ve onayınız alınır; ardından {ElevationName} istenir. Yalnızca bu sayfadaki ayarlar "
+        + "değiştirilebilir. Yeniden başlatma gerektirenler, yeniden başlattıktan sonra onaylamazsanız geri alınır. Hepsi Değişiklik geçmişinden geri alınabilir.";
 
     [ObservableProperty] public partial bool CreateRestorePoint { get; set; } = true;
     [ObservableProperty] public partial bool IsBusy { get; set; }
     [ObservableProperty] public partial string? Message { get; set; }
     [ObservableProperty] public partial bool MessageIsError { get; set; }
-
-    [ObservableProperty] public partial string HagsText { get; set; } = "";
-    [ObservableProperty] public partial bool CanEnableHags { get; set; }
-    [ObservableProperty] public partial bool CanDisableHags { get; set; }
-
-    [ObservableProperty] public partial string HvciText { get; set; } = "";
-    [ObservableProperty] public partial bool CanDisableHvci { get; set; }
-    [ObservableProperty] public partial bool CanEnableHvci { get; set; }
-
-    [ObservableProperty] public partial string DefenderText { get; set; } = "";
-    [ObservableProperty] public partial bool CanAddExclusions { get; set; }
-
     [ObservableProperty] public partial string? RestartText { get; set; }
 
     public bool HasMessage => !string.IsNullOrEmpty(Message);
@@ -44,102 +39,24 @@ public sealed partial class AdvancedViewModel(ChangeService changes, IUserDialog
 
     public void Refresh()
     {
-        var pendingRestart = changes.AwaitingRestart();
+        var journal = changes.Journal.LoadAll();
+        var pendingRestart = journal.Where(e => e is { Status: JournalStatus.Pending, RestartRequired: true }).ToList();
         RestartText = pendingRestart.Count == 0
             ? null
             : "Yeniden başlatma bekleyen değişiklikler: " + string.Join(", ", pendingRestart.Select(e => e.Title))
               + ". Yeniden başlattıktan sonra program açılıp onayınızı isteyecek.";
-        bool Waiting(string tweakId) => pendingRestart.Any(e => e.TweakId == tweakId);
 
-        // HAGS
-        var hags = AdvancedSettings.Hags();
-        var hagsPending = Waiting(AdvancedSettings.HagsOn.Id) || Waiting(AdvancedSettings.HagsOff.Id);
-        HagsText = hags switch
-        {
-            Toggle.On => "Şu an: açık.",
-            Toggle.Off => "Şu an: kapalı.",
-            _ => "Şu an: Windows varsayılanı (kayıt defterinde ayar yok).",
-        } + (hagsPending ? " Yeniden başlatma bekleyen bir değişiklik var." : "");
-        CanEnableHags = !hagsPending && hags != Toggle.On;
-        CanDisableHags = !hagsPending && hags != Toggle.Off;
-
-        // HVCI
+        Groups.Clear();
         try
         {
-            var hvci = AdvancedSettings.ReadHvci();
-            var hvciPending = Waiting(AdvancedSettings.HvciOff.Id) || Waiting(AdvancedSettings.HvciOn.Id);
-            HvciText = (hvci.Running == Toggle.On ? "Şu an: çalışıyor." : "Şu an: çalışmıyor.")
-                       + (hvci.Locked ? " UEFI kilidiyle açık tutuluyor; buradan değiştirilemez." : "")
-                       + (hvci.PolicyManaged ? " Grup İlkesi tarafından yönetiliyor; buradan değiştirilemez." : "")
-                       + (hvciPending ? " Yeniden başlatma bekleyen bir değişiklik var." : "");
-            CanDisableHvci = hvci.CanChange && !hvciPending && hvci.Running == Toggle.On;
-            CanEnableHvci = hvci.CanChange && !hvciPending && hvci.Running != Toggle.On;
+            foreach (var group in platform.Advanced.GetGroups(journal))
+                Groups.Add(new AdvancedGroupViewModel(group, RunAsync));
         }
         catch (Exception ex)
         {
-            HvciText = $"Durum okunamadı: {ex.Message}";
-            CanDisableHvci = CanEnableHvci = false;
-        }
-
-        // Defender
-        GameFolders.Clear();
-        foreach (var folder in GameLibraryLocator.FindGameRoots())
-            GameFolders.Add(folder);
-        var openExclusion = changes.Journal.LoadAll()
-            .FirstOrDefault(e => e.TweakId == AdvancedSettings.DefenderExclusion.Id && e.CanRevert);
-        DefenderText = GameFolders.Count == 0
-            ? "Oyun kütüphanesi bulunamadı."
-            : openExclusion is not null
-                ? $"Bu program {openExclusion.CreatedAt:dd.MM.yyyy} tarihinde istisna ekledi. Kaldırmak için Değişiklik geçmişi'nden geri alın."
-                : "Şu an bu program tarafından eklenmiş istisna yok. (Mevcut istisnalar yönetici izni olmadan okunamaz.)";
-        CanAddExclusions = GameFolders.Count > 0 && openExclusion is null;
-
-        // Startup
-        StartupItems.Clear();
-        try
-        {
-            foreach (var item in AdvancedSettings.ReadStartupItems().Where(i => i.ApprovedKey.Length > 0).OrderBy(i => i.Name, StringComparer.OrdinalIgnoreCase))
-                StartupItems.Add(new StartupItemViewModel(item, ToggleStartupAsync));
-        }
-        catch (Exception ex)
-        {
-            ShowMessage($"Başlangıç programları okunamadı: {ex.Message}", true);
+            ShowMessage($"Ayarlar okunamadı: {ex.Message}", true);
         }
     }
-
-    [RelayCommand]
-    private Task EnableHagsAsync() => RunAsync(
-        AdvancedSettings.HagsOn, [AdvancedSettings.HagsChange(true)],
-        "Donanım hızlandırmalı GPU zamanlaması açılacak. NVIDIA DLSS Kare Oluşturma için gereklidir; diğer durumlarda FPS'e etkisi genelde ölçülemeyecek kadar küçüktür.");
-
-    [RelayCommand]
-    private Task DisableHagsAsync() => RunAsync(
-        AdvancedSettings.HagsOff, [AdvancedSettings.HagsChange(false)],
-        "Donanım hızlandırmalı GPU zamanlaması kapatılacak. NVIDIA DLSS Kare Oluşturma bu ayar kapalıyken çalışmaz.");
-
-    [RelayCommand]
-    private Task DisableHvciAsync() => RunAsync(
-        AdvancedSettings.HvciOff, [AdvancedSettings.HvciChange(false)],
-        "Bellek Bütünlüğü kapatılacak.\n\n"
-        + "Kazanç: İşlemcinin darboğaz olduğu bazı oyunlarda %0–15 arası FPS artışı bildirilmiş; çoğu oyunda fark ölçülemiyor.\n\n"
-        + "Bedel: Kötü amaçlı ya da açığı olan sürücülerin çekirdeğe kod yerleştirmesine karşı önemli bir koruma kalkar. "
-        + "Bazı anti-cheat sistemleri güvenlik durumunu denetliyor; ileride bazı oyunlar bu ayar kapalıyken açılmayabilir. "
-        + "Windows güncellemeleri bu ayarı yeniden açabilir.\n\n"
-        + "Önce FPS ölçümü sekmesinde 'önce/sonra' ölçerek gerçekten kazanç olup olmadığını görmeniz önerilir.",
-        extraConfirm: "Güvenlik korumasını kapatmayı anlıyorum, devam et");
-
-    [RelayCommand]
-    private Task EnableHvciAsync() => RunAsync(
-        AdvancedSettings.HvciOn, [AdvancedSettings.HvciChange(true)],
-        "Bellek Bütünlüğü açılacak (Microsoft'un önerdiği güvenli durum). Uyumsuz bir sürücü varsa Windows açmayı reddedebilir.");
-
-    [RelayCommand]
-    private Task AddExclusionsAsync() => RunAsync(
-        AdvancedSettings.DefenderExclusion, AdvancedSettings.DefenderChanges(GameFolders),
-        "Şu klasörler Microsoft Defender taramasından hariç tutulacak:\n" + string.Join("\n", GameFolders)
-        + "\n\nGerçek zamanlı koruma açık kalır; yalnızca bu klasörlerdeki dosyalar taranmaz. Ortalama FPS'e etkisi çok küçüktür; "
-        + "oyun dosya yüklerken oluşan anlık takılmaları azaltabilir. Bedeli: bu klasörlere düşen zararlı bir dosya fark edilmez. "
-        + "Yalnızca güvendiğiniz mağazalardan (Steam, Epic) oyun kuruyorsanız kullanın.");
 
     [RelayCommand]
     private async Task RestartNowAsync()
@@ -150,33 +67,27 @@ public sealed partial class AdvancedViewModel(ChangeService changes, IUserDialog
             "Yeniden başlat",
             "Vazgeç");
         if (ok)
-            Process.Start(new ProcessStartInfo("shutdown.exe", "/r /t 10") { CreateNoWindow = true, UseShellExecute = false });
+            platform.RestartComputer(10);
     }
 
-    private Task ToggleStartupAsync(StartupItemViewModel item) => RunAsync(
-        AdvancedSettings.StartupToggle(item.Item, enable: !item.Item.Enabled),
-        [AdvancedSettings.StartupChange(item.Item, enable: !item.Item.Enabled)],
-        item.Item.Enabled
-            ? $"\"{item.Item.Name}\" Windows açılışında artık başlamayacak (Görev Yöneticisi'ndeki 'Devre dışı bırak' ile aynı; program silinmez)."
-            : $"\"{item.Item.Name}\" Windows açılışında yeniden başlayacak.");
-
-    private async Task RunAsync(ITweak tweak, IReadOnlyList<Change> changeList, string explanation, string? extraConfirm = null)
+    private async Task RunAsync(AdvancedAction action)
     {
-        if (IsBusy)
+        if (IsBusy || !action.Enabled)
             return;
 
-        var details = explanation + "\n\nYapılacak değişiklikler:\n" + string.Join("\n", changeList.Select(c => "• " + c.Describe()))
-                      + (tweak.RequiresAdmin ? "\n\nWindows yönetici izni isteyecek." : "")
+        var tweak = action.Tweak;
+        var details = action.Explanation + "\n\nYapılacak değişiklikler:\n" + string.Join("\n", action.Changes.Select(c => "• " + c.Describe()))
+                      + (tweak.RequiresAdmin ? $"\n\n{char.ToUpper(ElevationName[0])}{ElevationName[1..]} istenecek." : "")
                       + (tweak.RequiresRestart ? " Değişiklik yeniden başlatmadan sonra etkinleşir; ardından onayınız istenir." : "")
                       + "\nDeğişiklik geçmişinden geri alınabilir.";
-        if (!await dialogs.ConfirmAsync(tweak.Title, details, extraConfirm ?? "Uygula", "Vazgeç"))
+        if (!await dialogs.ConfirmAsync(tweak.Title, details, action.ExtraConfirm ?? "Uygula", "Vazgeç"))
             return;
 
         IsBusy = true;
         try
         {
-            var useRestorePoint = CreateRestorePoint && tweak.RequiresAdmin;
-            var outcome = await changes.ApplyAsync(tweak, changeList, createRestorePoint: useRestorePoint, requireRestorePoint: useRestorePoint);
+            var useRestorePoint = SupportsRestorePoint && CreateRestorePoint && tweak.RequiresAdmin;
+            var outcome = await changes.ApplyAsync(tweak, action.Changes, createRestorePoint: useRestorePoint, requireRestorePoint: useRestorePoint);
 
             if (!outcome.Result.Success && outcome.RestorePointError is { } restoreError)
             {
@@ -187,7 +98,7 @@ public sealed partial class AdvancedViewModel(ChangeService changes, IUserDialog
                     "Vazgeç");
                 if (!proceed)
                     return;
-                outcome = await changes.ApplyAsync(tweak, changeList);
+                outcome = await changes.ApplyAsync(tweak, action.Changes);
             }
 
             var result = outcome.Result;
@@ -222,19 +133,40 @@ public sealed partial class AdvancedViewModel(ChangeService changes, IUserDialog
     }
 }
 
-public sealed class StartupItemViewModel
+public sealed class AdvancedGroupViewModel
 {
-    public StartupItemViewModel(StartupItem item, Func<StartupItemViewModel, Task> toggle)
+    public AdvancedGroupViewModel(AdvancedGroup group, Func<AdvancedAction, Task> run)
     {
-        Item = item;
-        ToggleCommand = new AsyncRelayCommand(() => toggle(this));
+        Group = group;
+        Actions = group.Actions.Select(a => new AdvancedActionViewModel(a, run)).ToList();
+        SubItems = group.SubItems.Select(s => new AdvancedSubItemViewModel(s, run)).ToList();
     }
 
-    public StartupItem Item { get; }
-    public IAsyncRelayCommand ToggleCommand { get; }
+    public AdvancedGroup Group { get; }
+    public IReadOnlyList<AdvancedActionViewModel> Actions { get; }
+    public IReadOnlyList<AdvancedSubItemViewModel> SubItems { get; }
 
-    public string Name => Item.Name;
-    public string Location => Item.Location + (Item.ApprovedHive == "HKLM" ? " · yönetici izni gerekir" : "");
-    public string StateText => Item.Enabled ? "Açık" : "Devre dışı";
-    public string ToggleText => Item.Enabled ? "Devre dışı bırak" : "Etkinleştir";
+    public string Title => Group.Title;
+    public string Description => Group.Description;
+    public string State => Group.State;
+    public bool HasState => !string.IsNullOrEmpty(Group.State);
+    public bool IsSecuritySensitive => Group.IsSecuritySensitive;
+    public IReadOnlyList<string> Lines => Group.Lines;
+}
+
+public sealed class AdvancedActionViewModel(AdvancedAction action, Func<AdvancedAction, Task> run)
+{
+    public string Label => action.Label;
+    public bool Enabled => action.Enabled;
+    public IAsyncRelayCommand Command { get; } = new AsyncRelayCommand(() => run(action));
+}
+
+public sealed class AdvancedSubItemViewModel(AdvancedSubItem item, Func<AdvancedAction, Task> run)
+{
+    public string Name => item.Name;
+    public string Detail => item.Detail;
+    public string State => item.State;
+    public bool HasAction => item.Action is not null;
+    public string ActionLabel => item.Action?.Label ?? "";
+    public IAsyncRelayCommand Command { get; } = new AsyncRelayCommand(() => item.Action is { } a ? run(a) : Task.CompletedTask);
 }

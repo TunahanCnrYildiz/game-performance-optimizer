@@ -359,7 +359,10 @@ public sealed partial class MainWindowViewModel(
         if (inv.Memory is { } memory)
         {
             var gen = memory.Generation == MemoryGeneration.Unknown ? "" : $" {memory.Generation.ToString().ToUpperInvariant()}";
-            Summary.Add(new("Bellek", $"{memory.TotalBytes / GiB:0} GB{gen}, {memory.Modules.Count} modül\n{memory.ConfiguredSpeedMts} MT/s"));
+            // Linux reports only the total (module details need root).
+            Summary.Add(new("Bellek", memory.Modules.Count == 0
+                ? $"{memory.TotalBytes / GiB:0} GB"
+                : $"{memory.TotalBytes / GiB:0} GB{gen}, {memory.Modules.Count} modül\n{memory.ConfiguredSpeedMts} MT/s"));
         }
 
         foreach (var d in inv.Displays)
