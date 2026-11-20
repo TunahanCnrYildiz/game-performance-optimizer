@@ -102,3 +102,7 @@ dotnet test --solution PerformanceOptimizer.slnx
 | `tests/Optimizer.Platform.Windows.Tests` | Kayıt defteri, süreç örnekleyici ve uçtan uca oturum testleri (yalnızca geçici test anahtarı ve testin kendi başlattığı süreçler üzerinde çalışır) |
 
 Ayrıntılar: [ARASTIRMA.md](ARASTIRMA.md), [TEKNOLOJI.md](TEKNOLOJI.md)
+
+## Lisans
+
+[MIT](LICENSE). Ölçüm için kullanılan Intel PresentMon ayrıca MIT lisanslıdır ve depoya dahil değildir; derlemede uygulamanın yanına `PresentMon-LICENSE.txt` ile birlikte kopyalanır.
