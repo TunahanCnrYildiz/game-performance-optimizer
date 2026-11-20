@@ -32,6 +32,15 @@ public sealed record JournalEntry
     public DateTimeOffset? ClosedAt { get; init; }
     public IReadOnlyList<string> Notes { get; init; } = [];
 
+    /// <summary>Applying and reverting need administrator rights (HKLM, Defender, ...).</summary>
+    public bool RequiresAdmin { get; init; }
+
+    /// <summary>Takes effect only after a restart; stays Pending until the user confirms after rebooting.</summary>
+    public bool RestartRequired { get; init; }
+
+    /// <summary>When Windows last started at the time of applying; used to tell whether a restart happened.</summary>
+    public DateTimeOffset? BootTime { get; init; }
+
     public bool CanRevert => Status is JournalStatus.Applied or JournalStatus.Pending;
 }
 

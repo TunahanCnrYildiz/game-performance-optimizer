@@ -149,6 +149,42 @@ public sealed class TweakEngineTests : IDisposable
         Assert.Equal("1", _registry.Values["A"].Value);
     }
 
+    private sealed class RestartTweak : ITweak
+    {
+        public string Id => "test.restart";
+        public string Title => "Restart";
+        public Risk Risk => Risk.Low;
+        public bool RequiresRestart => true;
+        public bool Handles(Finding finding) => false;
+        public IReadOnlyList<Change> GetChanges(SystemInventory inventory, Finding finding) => [];
+    }
+
+    [Fact]
+    public void Restart_entries_survive_startup_recovery_and_detect_the_reboot()
+    {
+        var boot = new DateTimeOffset(2026, 11, 20, 8, 0, 0, TimeSpan.Zero);
+        var engine = new TweakEngine(_registry, _journal, "test", bootTime: () => boot);
+        engine.Apply(new RestartTweak(), [Set("A", 1)], keepPending: true);
+
+        Assert.Empty(engine.RecoverPending()); // not reverted on a normal restart of the app
+        var entry = Assert.Single(engine.AwaitingRestart());
+        Assert.True(entry.RestartRequired);
+        Assert.False(engine.HasRestartedSince(entry));
+
+        boot = boot.AddHours(3); // Windows restarted
+        Assert.True(engine.HasRestartedSince(entry));
+        Assert.Equal("1", _registry.Values["A"].Value);
+    }
+
+    [Fact]
+    public void Inspect_reports_drift_when_something_else_changed_the_value()
+    {
+        var result = _engine.Apply(new Tweak(), [Set("A", 1)]);
+        _registry.Values["A"] = RegistryData.Dword(5);
+
+        Assert.Equal(ChangeState.Diverged, Assert.Single(_engine.Inspect(result.Entry!)));
+    }
+
     [Fact]
     public void RevertAll_undoes_everything_newest_first()
     {

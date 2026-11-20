@@ -15,6 +15,7 @@ namespace Optimizer.Core.Changes;
 [JsonDerivedType(typeof(DisplayModeChange), "displayMode")]
 [JsonDerivedType(typeof(MouseAccelerationChange), "mouseAcceleration")]
 [JsonDerivedType(typeof(ProcessEfficiencyChange), "processEfficiency")]
+[JsonDerivedType(typeof(DefenderExclusionChange), "defenderExclusion")]
 public abstract record Change
 {
     /// <summary>True once the executor has recorded the original state.</summary>
@@ -78,6 +79,15 @@ public sealed record MouseParameters(int Threshold1, int Threshold2, int Acceler
     public static readonly MouseParameters WindowsDefault = new(6, 10, 1);
 
     public bool AccelerationOn => Acceleration != 0;
+}
+
+/// <summary>
+/// A folder excluded from Microsoft Defender scanning. Real-time protection itself stays on.
+/// <see cref="ExistedBefore"/> keeps an exclusion the user had already made from being removed on revert.
+/// </summary>
+public sealed record DefenderExclusionChange(string Path, bool? ExistedBefore) : Change
+{
+    public override string Describe() => $"Defender tarama istisnası: {Path}";
 }
 
 /// <summary>Priority class and EcoQoS (power throttling) masks of a running process.</summary>

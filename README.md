@@ -2,7 +2,16 @@
 
 Oyun performansını etkileyen sistem ayarlarını teşhis eden masaüstü uygulaması (Windows; Linux desteği planlı).
 
-**Mevcut durum — Faz 4 (FPS ölçümü):** Uygulama sistemi tarar, sorunları listeler, bir kısmını kullanıcının onayıyla düzeltir, oyun oynarken arka planda neyin kaynak tükettiğini ölçer ve bir ayarın FPS'e gerçek etkisini önce/sonra ölçümüyle gösterir. Yönetici yetkisi istemez.
+**Mevcut durum — Faz 5 (gelişmiş ayarlar):** Uygulama sistemi tarar, sorunları listeler, bir kısmını kullanıcının onayıyla düzeltir, oyun oynarken arka planda neyin kaynak tükettiğini ölçer, bir ayarın FPS'e gerçek etkisini önce/sonra ölçümüyle gösterir ve "Gelişmiş" sekmesinde yönetici gerektiren birkaç ayarı güvenli şekilde değiştirebilir. Uygulamanın kendisi yönetici olarak çalışmaz.
+
+## Gelişmiş ayarlar (yönetici izni gerektirenler)
+
+- HAGS aç/kapat, Bellek Bütünlüğü (HVCI) kapat/aç, oyun kütüphanesi klasörleri için Defender tarama istisnası, başlangıç programlarını devre dışı bırakma/etkinleştirme.
+- Kalıcı bir yönetici servisi yoktur. Gerektiğinde uygulama yalnızca o işlem için kendi kopyasını UAC ile başlatır (`--elevated`). Bu kopya, istek dosyasındaki her değişikliği sabit bir izin listesine göre denetler; listede olmayan hiçbir anahtar, değer ya da klasör değiştirilmez. Aynı denetim geri alırken de yapılır, böylece kurcalanmış bir günlük kaydı keyfi bir sistem ayarı yazmak için kullanılamaz.
+- İsteğe bağlı olarak önce Sistem Geri Yükleme noktası oluşturulur; oluşturulamazsa kullanıcıya sorulur.
+- Yeniden başlatma gerektiren değişiklikler "yeniden başlatma bekliyor" olarak kaydedilir. Program bir sonraki oturum açılışında kendiliğinden açılır (tek seferlik RunOnce) ve 60 saniyelik geri sayımla onay ister; onaylanmazsa geri alınır.
+- Kayma tespiti: Değişiklik geçmişinde, uygulanmış ama sonradan Windows ya da başka bir program tarafından değiştirilmiş ayarlar işaretlenir.
+- Komut satırındaki `revert` / `revert-all`, yönetici gerektiren kayıtlar varsa kendini UAC ile yeniden başlatır.
 
 ## FPS ölçümü
 

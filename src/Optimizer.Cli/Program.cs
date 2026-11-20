@@ -19,6 +19,42 @@ Console.OutputEncoding = Encoding.UTF8;
 var command = args.FirstOrDefault(a => !a.StartsWith("--", StringComparison.Ordinal)) ?? "report";
 var engine = new TweakEngine(new WindowsChangeExecutor(), new Journal(WindowsAppPaths.JournalDirectory), "cli");
 
+// Entries that touched machine-wide settings can only be reverted elevated: re-run this command via UAC.
+if (command is "revert" or "revert-all"
+    && engine.Journal.LoadAll().Any(e => e.CanRevert && e.RequiresAdmin)
+    && !Optimizer.Platform.Windows.Elevation.ElevatedHost.IsElevated())
+{
+    Console.WriteLine("Bazı değişiklikler yönetici izni gerektiriyor; komut yönetici olarak yeniden çalıştırılıyor...");
+    try
+    {
+        using var elevated = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = Environment.ProcessPath!,
+            Arguments = string.Join(" ", args.Select(a => $"\"{a}\"")) + " --pause",
+            UseShellExecute = true,
+            Verb = "runas",
+        })!;
+        elevated.WaitForExit();
+        return elevated.ExitCode;
+    }
+    catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == 1223)
+    {
+        Console.Error.WriteLine("Yönetici izni verilmedi; hiçbir şey geri alınmadı.");
+        return 1;
+    }
+}
+
+var exitCode = await RunCommand();
+if (args.Contains("--pause"))
+{
+    Console.WriteLine("Kapatmak için bir tuşa basın.");
+    Console.ReadKey();
+}
+
+return exitCode;
+
+async Task<int> RunCommand()
+{
 switch (command)
 {
     case "history":
@@ -29,7 +65,7 @@ switch (command)
         return PrintReverts(engine.RevertAll());
 
     case "revert":
-        var prefix = args.ElementAtOrDefault(1);
+        var prefix = args.Where(a => a != "--pause").ElementAtOrDefault(1);
         var matches = engine.Journal.LoadAll()
             .Where(e => prefix is not null && e.Id.ToString("N").StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
             .ToList();
@@ -55,6 +91,7 @@ switch (command)
     default:
         Console.Error.WriteLine($"Bilinmeyen komut: {command}. Komutlar: report, history, revert <id>, revert-all");
         return 1;
+}
 }
 
 static async Task<int> Bench(string[] rest, bool admin)

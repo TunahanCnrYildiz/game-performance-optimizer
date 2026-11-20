@@ -90,7 +90,8 @@ internal static class RegistryCollectors
         using var approvedKey = hive.OpenSubKey(approvedPath);
         foreach (var name in key.GetValueNames().Where(n => !string.IsNullOrEmpty(n)))
         {
-            items.Add(new StartupItem(name, key.GetValue(name)?.ToString() ?? "", location, IsApproved(approvedKey, name)));
+            items.Add(new StartupItem(name, key.GetValue(name)?.ToString() ?? "", location, IsApproved(approvedKey, name),
+                HiveName(hive), approvedPath, name));
         }
     }
 
@@ -103,9 +104,12 @@ internal static class RegistryCollectors
         foreach (var file in Directory.EnumerateFiles(folder).Where(f => !f.EndsWith("desktop.ini", StringComparison.OrdinalIgnoreCase)))
         {
             var fileName = Path.GetFileName(file);
-            items.Add(new StartupItem(Path.GetFileNameWithoutExtension(file), file, location, IsApproved(approvedKey, fileName)));
+            items.Add(new StartupItem(Path.GetFileNameWithoutExtension(file), file, location, IsApproved(approvedKey, fileName),
+                HiveName(hive), approvedPath, fileName));
         }
     }
+
+    private static string HiveName(RegistryKey hive) => hive == Registry.LocalMachine ? "HKLM" : "HKCU";
 
     /// <summary>
     /// Task Manager stores enable/disable state as a 12-byte blob; an odd first byte means disabled.

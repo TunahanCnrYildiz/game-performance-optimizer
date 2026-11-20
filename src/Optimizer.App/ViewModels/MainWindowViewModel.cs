@@ -14,13 +14,17 @@ public sealed partial class MainWindowViewModel(
     IInventoryCollector collector,
     DiagnosticEngine diagnostics,
     ITweakCatalog catalog,
-    TweakEngine tweaks,
+    ChangeService changes,
     IUserDialogs dialogs,
     SessionsViewModel sessions,
-    BenchmarksViewModel benchmarks) : ObservableObject
+    BenchmarksViewModel benchmarks,
+    AdvancedViewModel advanced) : ObservableObject
 {
     public SessionsViewModel Sessions { get; } = sessions;
     public BenchmarksViewModel Benchmarks { get; } = benchmarks;
+    public AdvancedViewModel Advanced { get; } = advanced;
+
+    private const int RestartConfirmSeconds = 60;
 
     private const double GiB = 1024d * 1024 * 1024;
     private const int ConfirmSeconds = 15;
@@ -72,10 +76,16 @@ public sealed partial class MainWindowViewModel(
             ? $"Son tarama: {t:HH:mm:ss}"
             : "Henüz tarama yapılmadı";
 
-    /// <summary>Startup: undo anything a previous run left unconfirmed, then scan.</summary>
+    /// <summary>Startup: undo anything a previous run left unconfirmed, confirm restart changes, then scan.</summary>
     public async Task InitializeAsync()
     {
-        var recovered = await Task.Run(tweaks.RecoverPending);
+        Advanced.Changed += async () =>
+        {
+            LoadHistory();
+            await ScanAsync();
+        };
+
+        var recovered = await changes.RecoverPendingAsync();
         if (recovered.Count > 0)
         {
             ShowMessage(
@@ -84,9 +94,40 @@ public sealed partial class MainWindowViewModel(
                 isError: recovered.Any(r => !r.Success));
         }
 
+        await ConfirmRestartChangesAsync();
         LoadHistory();
+        Advanced.Refresh();
         Sessions.Activate();
         await ScanAsync();
+    }
+
+    /// <summary>
+    /// After a restart, each change that needed it is shown once with a countdown. Only an
+    /// explicit "keep" keeps it; timing out or closing the dialog reverts it.
+    /// </summary>
+    private async Task ConfirmRestartChangesAsync()
+    {
+        foreach (var entry in changes.AwaitingRestart().Where(changes.HasRestartedSince))
+        {
+            var keep = await dialogs.ConfirmWithTimeoutAsync(
+                "Yeniden başlatma sonrası onay",
+                $"\"{entry.Title}\" yeniden başlatmayla birlikte etkinleşti. Bilgisayar ve oyunlarınız düzgün çalışıyor mu? "
+                + "Onaylamazsanız değişiklik geri alınır (yönetici izni istenebilir).",
+                RestartConfirmSeconds);
+
+            if (keep)
+            {
+                changes.Confirm(entry.Id);
+                continue;
+            }
+
+            var reverted = await changes.RevertAsync(entry.Id);
+            ShowMessage(
+                reverted.Success
+                    ? $"\"{entry.Title}\" onaylanmadı ve geri alındı. Etkisinin kalkması için bilgisayarı yeniden başlatın."
+                    : $"\"{entry.Title}\" geri alınamadı: {reverted.Error} Değişiklik geçmişinden tekrar deneyebilirsiniz.",
+                !reverted.Success);
+        }
     }
 
     partial void OnShowPassedChanged(bool value) => ApplyFilter();
@@ -127,7 +168,7 @@ public sealed partial class MainWindowViewModel(
 
         await RunBusyAsync(async () =>
         {
-            var results = await Task.Run(tweaks.RevertAll);
+            var results = await changes.RevertAllAsync();
             var failed = results.Count(r => !r.Success);
             ShowMessage(
                 failed == 0
@@ -144,7 +185,7 @@ public sealed partial class MainWindowViewModel(
 
         await RunBusyAsync(async () =>
         {
-            var result = await Task.Run(() => tweaks.Apply(tweak, finding.Changes, keepPending: tweak.RequiresConfirmation));
+            var result = (await changes.ApplyAsync(tweak, finding.Changes, keepPending: tweak.RequiresConfirmation)).Result;
 
             if (!result.Success)
             {
@@ -168,14 +209,14 @@ public sealed partial class MainWindowViewModel(
 
                 if (!keep)
                 {
-                    var reverted = await Task.Run(() => tweaks.Revert(result.Entry!.Id));
+                    var reverted = await changes.RevertAsync(result.Entry!.Id);
                     ShowMessage(
                         reverted.Success ? "Değişiklik onaylanmadı ve geri alındı." : $"Geri alınırken sorun oluştu: {reverted.Error}",
                         isError: !reverted.Success);
                     return;
                 }
 
-                tweaks.Confirm(result.Entry!.Id);
+                changes.Confirm(result.Entry!.Id);
             }
 
             ShowMessage($"\"{tweak.Title}\" uygulandı. Değişiklik geçmişi sekmesinden geri alabilirsiniz.", isError: false);
@@ -189,7 +230,7 @@ public sealed partial class MainWindowViewModel(
 
         await RunBusyAsync(async () =>
         {
-            var result = await Task.Run(() => tweaks.Revert(entry.Entry.Id));
+            var result = await changes.RevertAsync(entry.Entry.Id);
             if (!result.Success)
                 ShowMessage($"Geri alınamadı: {result.Error}", isError: true);
             else if (result.Entry?.Status == JournalStatus.PartiallyReverted)
@@ -229,8 +270,13 @@ public sealed partial class MainWindowViewModel(
     {
         History.Clear();
         // Finished game-session entries (efficiency mode, already restored) would flood the list.
-        foreach (var entry in tweaks.Journal.LoadAll().Where(e => e.TweakId != "session.efficiency-mode" || e.CanRevert))
-            History.Add(new HistoryEntryViewModel(entry, RevertAsync));
+        foreach (var entry in changes.Journal.LoadAll().Where(e => e.TweakId != "session.efficiency-mode" || e.CanRevert))
+        {
+            // Drift: an applied change that is no longer in effect (Windows Update, a driver, the user).
+            var drifted = entry.Status == JournalStatus.Applied
+                          && changes.Inspect(entry).Any(s => s is ChangeState.Original or ChangeState.Diverged);
+            History.Add(new HistoryEntryViewModel(entry, RevertAsync, drifted));
+        }
         OnPropertyChanged(nameof(HasHistory));
         OnPropertyChanged(nameof(HasOpenChanges));
     }

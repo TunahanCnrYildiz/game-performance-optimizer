@@ -237,7 +237,7 @@ macOS'ta yazılımla yapılabilecek optimizasyon alanı çok dardır ve bu kası
    - **Önerilen eylemler ölçüme dayanır:** Program hiçbir hizmeti ya da uygulamayı kendi listesinden kapatmaz; yalnızca o sistemde ölçülen tüketicileri gösterir, karar kullanıcınındır.
    - **Kapsam dışı:** Toplu hizmet kapatma, Defender'ı kapatma, görsel efektleri performans ayarı olarak sunma (§4.5).
 4. **Faz 4 — FPS ölçümü.** ✅ İlk sürüm tamamlandı: PresentMon 2.6.0 ile etiketli ölçüm, oynaklığa göre karşılaştırma. Ayarı ölçümler arasında kullanıcı değiştiriyor; programın ayarı kendisi değiştirip A/B'yi otomatik yürüttüğü rehberli deney henüz yok. İlk plan: PresentMon entegrasyonu, önce/sonra karşılaştırma ekranı (ortalama, 1% ve 0.1% low). Belirsiz ayarlar (Oyun Modu, HAGS, Discord donanım hızlandırma vb.) kullanıcının kendi sisteminde A/B test edilir.
-5. **Faz 5 — Gelişmiş ayarlar.** HAGS, HVCI, onay zamanlayıcılı yeniden başlatma akışı, kayma tespiti.
+5. **Faz 5 — Gelişmiş ayarlar.** ✅ İlk sürüm tamamlandı: HAGS, HVCI, Defender oyun klasörü istisnası, başlangıç programları; işlem başına UAC ile çalışan, izin listesiyle sınırlı yardımcı; Sistem Geri Yükleme noktası; yeniden başlatma sonrası zaman aşımlı onay; kayma tespiti. Gerçek yönetici işlemleri (UAC onayı gerektirdiği için) otomatik testlerde değil, kullanıcı tarafından denenmeli.
 6. **Faz 6 — Linux desteği.** GameMode/sysctl drop-in/power-profiles; polkit yardımcısı.
 7. **Test altyapısı:** Her ayarı Hyper-V/VirtualBox sanal makinelerde (farklı Windows build'leri) uygula-geri al döngüsüyle otomatik test et; "uygula → geri al → sistem durumu ilk hâliyle bire bir aynı mı?" kontrolü. Gerçek donanımda en az bir masaüstü + bir hibrit GPU'lu dizüstü test et.
 

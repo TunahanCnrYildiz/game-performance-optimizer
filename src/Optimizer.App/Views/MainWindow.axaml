@@ -257,12 +257,13 @@
                 <ItemsControl.ItemTemplate>
                   <DataTemplate x:DataType="vm:HistoryEntryViewModel">
                     <Border Classes="row" Padding="16,12">
-                      <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
+                      <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto,Auto">
                         <StackPanel Orientation="Horizontal" Spacing="12">
                           <Border Classes="badge" Background="{Binding StatusBrush}">
                             <TextBlock Text="{Binding StatusText}" />
                           </Border>
                           <TextBlock Text="{Binding Title}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                          <TextBlock Classes="muted" FontSize="12" Text="yönetici" IsVisible="{Binding NeedsAdmin}" VerticalAlignment="Center" />
                           <TextBlock Classes="muted" FontSize="12" Text="{Binding DateText}" VerticalAlignment="Center" />
                         </StackPanel>
                         <Button Grid.Column="1" Grid.RowSpan="3" VerticalAlignment="Top" Content="Geri al"
@@ -282,6 +283,8 @@
                             </DataTemplate>
                           </ItemsControl.ItemTemplate>
                         </ItemsControl>
+                        <TextBlock Grid.Row="3" Margin="0,6,0,0" FontSize="12" Foreground="#C98A00" TextWrapping="Wrap"
+                                   Text="{Binding DriftText}" IsVisible="{Binding IsDrifted}" />
                       </Grid>
                     </Border>
                   </DataTemplate>
@@ -502,6 +505,104 @@
                   </DataTemplate>
                 </ItemsControl.ItemTemplate>
               </ItemsControl>
+            </StackPanel>
+          </ScrollViewer>
+        </TabItem>
+        <!-- Advanced (administrator) settings -->
+        <TabItem Header="Gelişmiş" DataContext="{Binding Advanced}" x:DataType="vm:AdvancedViewModel">
+          <ScrollViewer>
+            <StackPanel Spacing="12">
+              <Border Classes="card" BorderThickness="1" BorderBrush="#C98A00">
+                <StackPanel Spacing="6">
+                  <TextBlock Text="Bu ayarlar yönetici izni gerektirir" FontWeight="SemiBold" />
+                  <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap"
+                             Text="Her işlemden önce ne değişeceği gösterilir ve onayınız alınır; ardından Windows yönetici izni (UAC) ister. Yalnızca bu sayfadaki ayarlar değiştirilebilir. Yeniden başlatma gerektirenler, yeniden başlattıktan sonra onaylamazsanız geri alınır. Hepsi Değişiklik geçmişinden geri alınabilir." />
+                  <CheckBox IsChecked="{Binding CreateRestorePoint}" Content="Değişiklikten önce Sistem Geri Yükleme noktası oluştur (önerilir)" />
+                </StackPanel>
+              </Border>
+
+              <Border Classes="card" IsVisible="{Binding HasMessage}" BorderThickness="1" BorderBrush="#3B7DD8"
+                      Classes.error="{Binding MessageIsError}">
+                <Border.Styles>
+                  <Style Selector="Border.error">
+                    <Setter Property="BorderBrush" Value="#D64545" />
+                  </Style>
+                </Border.Styles>
+                <TextBlock Text="{Binding Message}" TextWrapping="Wrap" />
+              </Border>
+
+              <Border Classes="card" IsVisible="{Binding NeedsRestart}" BorderThickness="1" BorderBrush="#C98A00">
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Text="{Binding RestartText}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                  <Button Grid.Column="1" Classes="accent" Content="Şimdi yeniden başlat" Command="{Binding RestartNowCommand}" Margin="12,0,0,0" />
+                </Grid>
+              </Border>
+
+              <Border Classes="card">
+                <StackPanel Spacing="6">
+                  <TextBlock Text="Donanım hızlandırmalı GPU zamanlaması (HAGS)" FontWeight="SemiBold" />
+                  <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap"
+                             Text="NVIDIA DLSS Kare Oluşturma için gereklidir. Testlerde FPS'e etkisi genelde ölçülemeyecek kadar küçük; emin değilseniz FPS ölçümü sekmesiyle önce/sonra karşılaştırın. Yeniden başlatma gerekir." />
+                  <TextBlock Text="{Binding HagsText}" TextWrapping="Wrap" />
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Content="Aç" Command="{Binding EnableHagsCommand}" IsEnabled="{Binding CanEnableHags}" />
+                    <Button Content="Kapat" Command="{Binding DisableHagsCommand}" IsEnabled="{Binding CanDisableHags}" />
+                  </StackPanel>
+                </StackPanel>
+              </Border>
+
+              <Border Classes="card" BorderThickness="1" BorderBrush="#D64545">
+                <StackPanel Spacing="6">
+                  <TextBlock Text="Bellek Bütünlüğü (HVCI) — güvenlik ayarı" FontWeight="SemiBold" />
+                  <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap"
+                             Text="Kapatmak bazı işlemci darboğazlı oyunlarda %0–15 FPS kazandırabilir, ama sürücü kaynaklı saldırılara karşı önemli bir korumayı kaldırır ve bazı anti-cheat sistemleriyle sorun çıkarabilir. Yeniden başlatma gerekir." />
+                  <TextBlock Text="{Binding HvciText}" TextWrapping="Wrap" />
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Content="Kapat" Command="{Binding DisableHvciCommand}" IsEnabled="{Binding CanDisableHvci}" />
+                    <Button Content="Aç (önerilen)" Command="{Binding EnableHvciCommand}" IsEnabled="{Binding CanEnableHvci}" />
+                  </StackPanel>
+                </StackPanel>
+              </Border>
+
+              <Border Classes="card">
+                <StackPanel Spacing="6">
+                  <TextBlock Text="Microsoft Defender: oyun klasörü istisnası" FontWeight="SemiBold" />
+                  <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap"
+                             Text="Gerçek zamanlı koruma açık kalır; yalnızca oyun kütüphanesi klasörleri taranmaz. Ortalama FPS'e etkisi çok küçük, yükleme sırasındaki anlık takılmaları azaltabilir. Bedeli: bu klasörlere düşen zararlı bir dosya fark edilmez." />
+                  <ItemsControl ItemsSource="{Binding GameFolders}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="x:String">
+                        <TextBlock Classes="mono" Text="{Binding}" />
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                  <TextBlock Text="{Binding DefenderText}" TextWrapping="Wrap" />
+                  <Button Content="Bu klasörleri taramadan hariç tut" Command="{Binding AddExclusionsCommand}" IsEnabled="{Binding CanAddExclusions}" />
+                </StackPanel>
+              </Border>
+
+              <Border Classes="card">
+                <StackPanel Spacing="6">
+                  <TextBlock Text="Başlangıç programları" FontWeight="SemiBold" />
+                  <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap"
+                             Text="Görev Yöneticisi'ndeki 'Başlangıç uygulamaları' ile aynı mekanizma: program silinmez, yalnızca Windows açılışında başlamaz. Tüm kullanıcılar için kayıtlı olanlar yönetici izni ister." />
+                  <ItemsControl ItemsSource="{Binding StartupItems}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="vm:StartupItemViewModel">
+                        <Grid ColumnDefinitions="*,90,150" Margin="0,3">
+                          <StackPanel>
+                            <TextBlock Text="{Binding Name}" />
+                            <TextBlock Classes="muted" FontSize="11" Text="{Binding Location}" />
+                          </StackPanel>
+                          <TextBlock Grid.Column="1" Text="{Binding StateText}" VerticalAlignment="Center" />
+                          <Button Grid.Column="2" HorizontalAlignment="Right" FontSize="12" Padding="8,2"
+                                  Content="{Binding ToggleText}" Command="{Binding ToggleCommand}" />
+                        </Grid>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+              </Border>
             </StackPanel>
           </ScrollViewer>
         </TabItem>

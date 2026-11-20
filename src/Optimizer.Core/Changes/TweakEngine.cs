@@ -9,9 +9,15 @@ public sealed record RevertResult(bool Success, JournalEntry? Entry, string? Err
 /// capture originals → journal (Pending) → backup → apply one by one → verify → journal (Applied).
 /// Any failure undoes what was already applied, newest first.
 /// </summary>
-public sealed class TweakEngine(IChangeExecutor executor, Journal journal, string appVersion, TimeProvider? clock = null)
+public sealed class TweakEngine(
+    IChangeExecutor executor,
+    Journal journal,
+    string appVersion,
+    TimeProvider? clock = null,
+    Func<DateTimeOffset>? bootTime = null)
 {
     private readonly TimeProvider _clock = clock ?? TimeProvider.System;
+    private readonly Func<DateTimeOffset> _bootTime = bootTime ?? BootClock.Current;
 
     public Journal Journal => journal;
 
@@ -51,6 +57,9 @@ public sealed class TweakEngine(IChangeExecutor executor, Journal journal, strin
             AppVersion = appVersion,
             Status = JournalStatus.Pending,
             Changes = toApply,
+            RequiresAdmin = tweak.RequiresAdmin,
+            RestartRequired = tweak.RequiresRestart,
+            BootTime = _bootTime(),
         };
 
         // The journal must exist on disk before the first byte of the system is touched.
@@ -176,12 +185,37 @@ public sealed class TweakEngine(IChangeExecutor executor, Journal journal, strin
             : new RevertResult(false, closed, $"{errors} değişiklik geri alınamadı.");
     }
 
-    /// <summary>Reverts every entry left Pending by a crash or an unconfirmed change.</summary>
-    public IReadOnlyList<RevertResult> RecoverPending() =>
+    /// <summary>
+    /// Reverts every entry left Pending by a crash or an unconfirmed change. Entries waiting
+    /// for a restart are left to the restart-confirmation flow (<see cref="AwaitingRestart"/>).
+    /// </summary>
+    public IReadOnlyList<RevertResult> RecoverPending(Func<JournalEntry, bool>? canRevert = null) =>
         journal.LoadAll()
-            .Where(e => e.Status == JournalStatus.Pending)
+            .Where(e => e.Status == JournalStatus.Pending && !e.RestartRequired && (canRevert?.Invoke(e) ?? true))
             .Select(e => Revert(e.Id))
             .ToList();
+
+    /// <summary>Applied-but-unconfirmed changes that only take effect after a restart.</summary>
+    public IReadOnlyList<JournalEntry> AwaitingRestart() =>
+        journal.LoadAll().Where(e => e.Status == JournalStatus.Pending && e.RestartRequired).ToList();
+
+    /// <summary>True once Windows has restarted since the entry was applied.</summary>
+    public bool HasRestartedSince(JournalEntry entry) =>
+        entry.BootTime is { } then && (_bootTime() - then).Duration() > TimeSpan.FromMinutes(1);
+
+    /// <summary>Current state of each change of an entry; null where it cannot be read (e.g. needs admin).</summary>
+    public IReadOnlyList<ChangeState?> Inspect(JournalEntry entry) =>
+        entry.Changes.Select(c =>
+        {
+            try
+            {
+                return (ChangeState?)executor.Inspect(c);
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }).ToList();
 
     /// <summary>Reverts every open entry, newest first. The "undo everything" safety net.</summary>
     public IReadOnlyList<RevertResult> RevertAll() =>

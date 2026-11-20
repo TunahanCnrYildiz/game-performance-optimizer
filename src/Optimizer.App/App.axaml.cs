@@ -13,6 +13,7 @@ using Optimizer.Core.Diagnostics;
 using Optimizer.Core.Sessions;
 using Optimizer.Platform.Windows;
 using Optimizer.Platform.Windows.Benchmarks;
+using Optimizer.Platform.Windows.Elevation;
 using Optimizer.Platform.Windows.Changes;
 using Optimizer.Platform.Windows.Sessions;
 
@@ -46,6 +47,7 @@ public sealed class App : Application
 
             var sessions = new SessionsViewModel(_monitor, settings, sessionStore);
             var dialogs = new UserDialogs(() => desktop.MainWindow);
+            var changes = new ChangeService(engine, ElevatedRunner.ForCurrentProcess());
             var benchmarks = new BenchmarksViewModel(
                 PresentMonRunner.Locate(), new BenchmarkStore(WindowsAppPaths.BenchmarksDirectory), _monitor, dialogs);
             var window = new MainWindow();
@@ -53,10 +55,11 @@ public sealed class App : Application
                 new WindowsInventoryCollector(),
                 DiagnosticEngine.CreateDefault(),
                 new WindowsTweakCatalog(),
-                engine,
+                changes,
                 dialogs,
                 sessions,
-                benchmarks);
+                benchmarks,
+                new AdvancedViewModel(changes, dialogs));
 
             var icon = new WindowIcon(AssetLoader.Open(new Uri("avares://PerformanceOptimizer/Assets/icon.png")));
             window.Icon = icon;

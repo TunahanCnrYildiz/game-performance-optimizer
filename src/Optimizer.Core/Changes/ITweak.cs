@@ -18,10 +18,24 @@ public interface ITweak
     /// </summary>
     bool RequiresConfirmation => false;
 
+    /// <summary>Needs administrator rights; applied through the elevated helper.</summary>
+    bool RequiresAdmin => false;
+
+    /// <summary>Takes effect after a restart; confirmed (or reverted) after the next boot.</summary>
+    bool RequiresRestart => false;
+
     bool Handles(Finding finding);
 
     /// <summary>Target changes, uncaptured. Empty when there is nothing to do.</summary>
     IReadOnlyList<Change> GetChanges(SystemInventory inventory, Finding finding);
+}
+
+/// <summary>A tweak triggered from the Advanced tab rather than from a finding.</summary>
+public sealed record ManualTweak(string Id, string Title, Risk Risk, bool RequiresAdmin = false, bool RequiresRestart = false) : ITweak
+{
+    public bool Handles(Finding finding) => false;
+
+    public IReadOnlyList<Change> GetChanges(SystemInventory inventory, Finding finding) => [];
 }
 
 public interface ITweakCatalog

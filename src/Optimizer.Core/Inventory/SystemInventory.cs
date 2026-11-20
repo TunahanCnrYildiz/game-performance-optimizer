@@ -155,4 +155,12 @@ public sealed record DiskInfo
     public double FreeRatio => TotalBytes <= 0 ? 0 : (double)FreeBytes / TotalBytes;
 }
 
-public sealed record StartupItem(string Name, string Command, string Location, bool Enabled);
+/// <param name="ApprovedHive">Where Task Manager keeps this item's enable/disable state ("HKCU"/"HKLM").</param>
+public sealed record StartupItem(
+    string Name,
+    string Command,
+    string Location,
+    bool Enabled,
+    string ApprovedHive = "HKCU",
+    string ApprovedKey = "",
+    string ApprovedName = "");
